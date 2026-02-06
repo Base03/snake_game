@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SERPENS INFERNALIS</title>
+<style>
+/* __STYLE__ */
+</style>
+</head>
+<body>
+<div id="ui-layer">
+  <div id="title-bar">
+    <h1>Serpens Infernalis</h1>
+    <div id="hud">
+      <span>SEGMENTS <span class="val" id="hud-segs">12</span></span>
+      <span>CANDLES <span class="val" id="hud-candles">0</span></span>
+      <span>SCORE <span class="val" id="hud-score">0</span></span>
+    </div>
+  </div>
+</div>
+<button id="sound-toggle">🔇</button>
+<div id="overlay">
+  <h2 id="overlay-title">Serpens Infernalis</h2>
+  <div class="sub" id="overlay-sub">A serpent of hellfire stalks the nave. Devour the sacred flames&mdash;or be consumed.</div>
+  <div class="score-line hidden" id="overlay-score"></div>
+  <div id="options">
+    <label id="dpad-toggle" class="hidden"><input type="checkbox" id="dpad-check"> Show D-Pad controls</label>
+    <label id="wallpaper-toggle"><input type="checkbox" id="wallpaper-check"> Wallpaper mode (auto-play)</label>
+  </div>
+  <button id="start-btn">Ignite</button>
+</div>
+<canvas id="game"></canvas>
+<div id="touch-controls">
+  <button class="up" ontouchstart="event.preventDefault();setDir(0,-1)" onclick="setDir(0,-1)">&#9650;</button>
+  <button class="left" ontouchstart="event.preventDefault();setDir(-1,0)" onclick="setDir(-1,0)">&#9664;</button>
+  <button class="down" ontouchstart="event.preventDefault();setDir(0,1)" onclick="setDir(0,1)">&#9660;</button>
+  <button class="right" ontouchstart="event.preventDefault();setDir(1,0)" onclick="setDir(1,0)">&#9654;</button>
+</div>
+<script>
+/* __AUDIO__ */
+/* __CHURCH__ */
+/* __GAME__ */
+</script>
+</body>
+</html>

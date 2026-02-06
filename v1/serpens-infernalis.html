@@ -1,0 +1,2647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SERPENS INFERNALIS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=JetBrains+Mono:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+body{background:#08060a;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100dvh;overflow:hidden;font-family:'JetBrains Mono',monospace;color:#d4c4a8;position:fixed;width:100%;height:100dvh}
+#ui-layer{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:10;display:flex;flex-direction:column;align-items:center}
+#title-bar{margin-top:10px;text-align:center}
+#title-bar h1{font-family:'UnifrakturMaguntia',serif;font-size:26px;
+  background:linear-gradient(180deg,#c9a44a,#8b0000,#3d0000);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:4px}
+#hud{display:flex;gap:28px;margin-top:4px;font-size:12px;letter-spacing:1px;color:#8a7560}
+#hud .val{color:#c9a44a;font-weight:700}
+#overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(8,6,10,0.92);z-index:20;pointer-events:all}
+#overlay.hidden{display:none}
+#overlay h2{font-family:'UnifrakturMaguntia',serif;font-size:38px;
+  background:linear-gradient(180deg,#c9a44a,#8b0000,#3d0000);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px}
+#overlay .sub{font-size:13px;color:#6a5a48;margin-bottom:8px;text-align:center;padding:0 20px;font-style:italic}
+#overlay .score-line{font-size:17px;color:#c9a44a;margin-bottom:20px}
+#options{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+#options label{font-size:13px;color:#6a5a48;cursor:pointer;display:flex;align-items:center;gap:8px;-webkit-tap-highlight-color:transparent}
+#options label.hidden{display:none}
+#options input[type="checkbox"]{accent-color:#8b0000;width:18px;height:18px;cursor:pointer}
+#overlay button{pointer-events:all;font-family:'UnifrakturMaguntia',serif;font-size:20px;padding:12px 40px;
+  background:linear-gradient(180deg,#3d0000,#1a0000);border:2px solid #8b0000;color:#c9a44a;cursor:pointer;
+  letter-spacing:3px;transition:all 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#overlay button:hover{background:linear-gradient(180deg,#5a0000,#3d0000);box-shadow:0 0 30px rgba(139,0,0,0.5)}
+#sound-toggle{position:absolute;top:10px;right:14px;z-index:25;background:none;border:1px solid rgba(139,0,0,0.3);
+  color:#6a5a48;font-size:18px;width:36px;height:36px;border-radius:6px;cursor:pointer;pointer-events:all;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#sound-toggle:active{background:rgba(139,0,0,0.2)}
+#touch-controls{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:15;pointer-events:all;display:none;
+  grid-template-areas:". up ." "left down right";grid-template-columns:64px 64px 64px;grid-template-rows:64px 64px;gap:6px}
+#touch-controls button{width:64px;height:64px;background:rgba(139,0,0,0.25);border:1px solid rgba(139,0,0,0.35);
+  color:#c9a44a;font-size:24px;cursor:pointer;border-radius:12px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#touch-controls button:active{background:rgba(139,0,0,0.5)}
+#touch-controls .up{grid-area:up} #touch-controls .left{grid-area:left}
+#touch-controls .down{grid-area:down} #touch-controls .right{grid-area:right}
+.show-dpad #touch-controls{display:grid}
+canvas{border:1px solid #1a0a0a;box-shadow:0 0 80px rgba(80,0,0,0.15),inset 0 0 60px rgba(0,0,0,0.5);touch-action:none}
+@media(max-width:500px){
+  #title-bar h1{font-size:18px;letter-spacing:2px}
+  #hud{gap:14px;font-size:10px}
+  #overlay h2{font-size:26px}
+  #overlay .sub{font-size:11px}
+  #overlay button{font-size:17px;padding:14px 32px;min-height:48px}
+}
+
+</style>
+</head>
+<body>
+<div id="ui-layer">
+  <div id="title-bar">
+    <h1>Serpens Infernalis</h1>
+    <div id="hud">
+      <span>SEGMENTS <span class="val" id="hud-segs">12</span></span>
+      <span>CANDLES <span class="val" id="hud-candles">0</span></span>
+      <span>SCORE <span class="val" id="hud-score">0</span></span>
+    </div>
+  </div>
+</div>
+<button id="sound-toggle">🔇</button>
+<div id="overlay">
+  <h2 id="overlay-title">Serpens Infernalis</h2>
+  <div class="sub" id="overlay-sub">A serpent of hellfire stalks the nave. Devour the sacred flames&mdash;or be consumed.</div>
+  <div class="score-line hidden" id="overlay-score"></div>
+  <div id="options">
+    <label id="dpad-toggle" class="hidden"><input type="checkbox" id="dpad-check"> Show D-Pad controls</label>
+    <label id="wallpaper-toggle"><input type="checkbox" id="wallpaper-check"> Wallpaper mode (auto-play)</label>
+  </div>
+  <button id="start-btn">Ignite</button>
+</div>
+<canvas id="game"></canvas>
+<div id="touch-controls">
+  <button class="up" ontouchstart="event.preventDefault();setDir(0,-1)" onclick="setDir(0,-1)">&#9650;</button>
+  <button class="left" ontouchstart="event.preventDefault();setDir(-1,0)" onclick="setDir(-1,0)">&#9664;</button>
+  <button class="down" ontouchstart="event.preventDefault();setDir(0,1)" onclick="setDir(0,1)">&#9660;</button>
+  <button class="right" ontouchstart="event.preventDefault();setDir(1,0)" onclick="setDir(1,0)">&#9654;</button>
+</div>
+<script>
+// =========================================
+// AUDIO ENGINE v2 - Effect → Track → Song
+// =========================================
+const AudioEngine = (() => {
+  let actx = null;
+  let master = null;    // GainNode
+  let enabled = false;
+  let started = false;
+  let corruption = 0;
+
+  // ---- NOTE FREQUENCY TABLE ----
+  const FREQ = {};
+  const NAMES = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+  for (let oct = 0; oct <= 7; oct++) {
+    for (let i = 0; i < 12; i++) {
+      FREQ[NAMES[i] + oct] = 440 * Math.pow(2, (i - 9) / 12 + (oct - 4));
+    }
+  }
+  // Enharmonic aliases
+  const ALIAS = {
+    'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb',
+    'Cb':'B','Fb':'E','E#':'F','B#':'C'
+  };
+  function noteFreq(name) {
+    if (!name || name === '-') return 0;
+    // Try direct lookup
+    if (FREQ[name]) return FREQ[name];
+    // Try alias: extract note part and octave
+    const m = name.match(/^([A-G][b#]?)(\d)$/);
+    if (m && ALIAS[m[1]]) return FREQ[ALIAS[m[1]] + m[2]] || 0;
+    return 0;
+  }
+
+  // ===========================================
+  // EFFECT - wraps persistent Web Audio nodes
+  // ===========================================
+  class Effect {
+    constructor(type, params = {}) {
+      this.type = type;
+      this.params = { ...params };
+      this.nodes = [];    // created on connect()
+      this.input = null;
+      this.output = null;
+    }
+
+    // Build the audio subgraph. Called once when track is wired up.
+    build(ctx) {
+      switch (this.type) {
+        case 'distortion': {
+          const ws = ctx.createWaveShaper();
+          ws.oversample = '2x';
+          this._shaper = ws;
+          this.input = ws;
+          this.output = ws;
+          this.updateCurve(this.params.amount || 0);
+          break;
+        }
+        case 'tremolo': {
+          // LFO → gain modulation
+          const lfo = ctx.createOscillator();
+          const lfoGain = ctx.createGain();
+          const wet = ctx.createGain();
+          lfo.type = 'sine';
+          lfo.frequency.value = this.params.rate || 5;
+          lfoGain.gain.value = this.params.depth || 0;
+          lfo.connect(lfoGain);
+          lfoGain.connect(wet.gain);
+          wet.gain.value = 1;
+          lfo.start();
+          this._lfo = lfo;
+          this._lfoGain = lfoGain;
+          this.input = wet;
+          this.output = wet;
+          break;
+        }
+        case 'filter': {
+          const f = ctx.createBiquadFilter();
+          f.type = this.params.filterType || 'lowpass';
+          f.frequency.value = this.params.freq || 1000;
+          f.Q.value = this.params.Q || 1;
+          this._filter = f;
+          this.input = f;
+          this.output = f;
+          break;
+        }
+        case 'reverb': {
+          // Convolution reverb with procedural IR
+          const conv = ctx.createConvolver();
+          const decay = this.params.decay || 2.5;
+          const len = ctx.sampleRate * decay;
+          const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+          for (let ch = 0; ch < 2; ch++) {
+            const d = buf.getChannelData(ch);
+            for (let i = 0; i < len; i++) {
+              d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+            }
+          }
+          conv.buffer = buf;
+          // Dry/wet mix
+          const dry = ctx.createGain();
+          const wet = ctx.createGain();
+          const out = ctx.createGain();
+          dry.gain.value = 1 - (this.params.mix || 0.3);
+          wet.gain.value = this.params.mix || 0.3;
+          // input → dry → out
+          // input → conv → wet → out
+          dry.connect(out);
+          conv.connect(wet);
+          wet.connect(out);
+          this._dry = dry;
+          this._wet = wet;
+          this._conv = conv;
+          // input is a passthrough that feeds both
+          const split = ctx.createGain();
+          split.connect(dry);
+          split.connect(conv);
+          this.input = split;
+          this.output = out;
+          break;
+        }
+        default: {
+          // Passthrough
+          const g = ctx.createGain();
+          g.gain.value = 1;
+          this.input = g;
+          this.output = g;
+        }
+      }
+    }
+
+    // Update parameters on an already-built effect
+    update(params) {
+      Object.assign(this.params, params);
+      switch (this.type) {
+        case 'distortion':
+          if (this._shaper) this.updateCurve(this.params.amount || 0);
+          break;
+        case 'tremolo':
+          if (this._lfo) this._lfo.frequency.value = this.params.rate || 5;
+          if (this._lfoGain) this._lfoGain.gain.value = this.params.depth || 0;
+          break;
+        case 'filter':
+          if (this._filter) {
+            this._filter.frequency.value = this.params.freq || 1000;
+            this._filter.Q.value = this.params.Q || 1;
+          }
+          break;
+        case 'reverb':
+          if (this._dry) this._dry.gain.value = 1 - (this.params.mix || 0.3);
+          if (this._wet) this._wet.gain.value = this.params.mix || 0.3;
+          break;
+      }
+    }
+
+    updateCurve(amount) {
+      if (!this._shaper) return;
+      const n = 256;
+      const curve = new Float32Array(n);
+      if (amount < 0.01) {
+        // Clean passthrough
+        for (let i = 0; i < n; i++) curve[i] = (i * 2 / n) - 1;
+      } else {
+        for (let i = 0; i < n; i++) {
+          const x = (i * 2 / n) - 1;
+          curve[i] = (Math.PI + amount) * x * 0.318 / (Math.PI + amount * Math.abs(x));
+        }
+      }
+      this._shaper.curve = curve;
+    }
+  }
+
+  // ===========================================
+  // INSTRUMENT - defines synthesis for a voice
+  // ===========================================
+  // Each instrument is a config object:
+  // {
+  //   stops: [{h: harmonic, type: 'sine'|'triangle'|..., vol: baseVol}, ...],
+  //   attack: seconds,
+  //   release: seconds,
+  //   type: 'organ' | 'choir' | 'sfx'
+  //   // choir-specific:
+  //   voices: count,
+  //   formants: [{freq, Q}, ...],
+  // }
+
+  const INSTRUMENTS = {
+    organBass: {
+      type: 'organ',
+      stops: [
+        { h: 0.5,  type: 'sine',     vol: 0.20 },  // 16' sub
+        { h: 1,    type: 'sine',     vol: 0.55 },  // 8' diapason
+        { h: 1,    type: 'triangle', vol: 0.15 },  // 8' flute
+        { h: 2,    type: 'sine',     vol: 0.10 },  // 4' principal
+      ],
+      attack: 0.06, release: 0.12,
+    },
+    organTenor: {
+      type: 'organ',
+      stops: [
+        { h: 1,    type: 'sine',     vol: 0.50 },
+        { h: 1,    type: 'triangle', vol: 0.18 },
+        { h: 2,    type: 'sine',     vol: 0.14 },
+        { h: 2.67, type: 'sine',     vol: 0.05 },
+        { h: 4,    type: 'sine',     vol: 0.06 },
+      ],
+      attack: 0.06, release: 0.12,
+    },
+    organAlto: {
+      type: 'organ',
+      stops: [
+        { h: 1,    type: 'sine',     vol: 0.45 },
+        { h: 1,    type: 'triangle', vol: 0.20 },
+        { h: 2,    type: 'sine',     vol: 0.16 },
+        { h: 2.67, type: 'sine',     vol: 0.06 },
+        { h: 4,    type: 'sine',     vol: 0.08 },
+        { h: 8,    type: 'sine',     vol: 0.02 },
+      ],
+      attack: 0.06, release: 0.12,
+    },
+    organSoprano: {
+      type: 'organ',
+      stops: [
+        { h: 1,    type: 'sine',     vol: 0.45 },
+        { h: 1,    type: 'triangle', vol: 0.22 },
+        { h: 2,    type: 'sine',     vol: 0.18 },
+        { h: 2.67, type: 'sine',     vol: 0.06 },
+        { h: 4,    type: 'sine',     vol: 0.10 },
+        { h: 8,    type: 'sine',     vol: 0.03 },
+      ],
+      attack: 0.06, release: 0.10,
+    },
+    organPedal: {
+      type: 'organ',
+      stops: [
+        { h: 0.5,  type: 'sine',     vol: 0.60 },  // 32' sub
+        { h: 1,    type: 'sine',     vol: 0.40 },  // 16'
+      ],
+      attack: 0.08, release: 0.15,
+    },
+    choir: {
+      type: 'choir',
+      voices: 3,
+      formants: [
+        { freq: 700, Q: 10 },   // F1
+        { freq: 1200, Q: 10 },  // F2
+      ],
+      attack: 0.15, release: 0.18,
+    },
+    // SFX instruments - simple waveforms
+    sfxTone: {
+      type: 'organ',
+      stops: [{ h: 1, type: 'square', vol: 1.0 }],
+      attack: 0.005, release: 0.01,
+    },
+    sfxSine: {
+      type: 'organ',
+      stops: [{ h: 1, type: 'sine', vol: 1.0 }],
+      attack: 0.005, release: 0.01,
+    },
+    sfxSaw: {
+      type: 'organ',
+      stops: [{ h: 1, type: 'sawtooth', vol: 1.0 }],
+      attack: 0.005, release: 0.01,
+    },
+    sfxNoise: {
+      type: 'noise',
+      attack: 0.003, release: 0.01,
+    },
+  };
+
+  // ===========================================
+  // TRACK - instrument voice + effect chain
+  // ===========================================
+  class Track {
+    constructor(name, instrumentKey, effectDefs = [], volume = 1.0) {
+      this.name = name;
+      this.instrument = INSTRUMENTS[instrumentKey];
+      this.effectDefs = effectDefs;   // [{type, params}]
+      this.baseVolume = volume;
+      this.effects = [];
+      this.gain = null;   // GainNode
+      this.built = false;
+      this._noiseBuffer = null;
+    }
+
+    // Wire up: source → effects[0] → ... → effects[n] → trackGain → destination
+    build(ctx, destination) {
+      this.gain = ctx.createGain();
+      this.gain.gain.value = this.baseVolume;
+      this.gain.connect(destination);
+
+      // Build effects
+      this.effects = this.effectDefs.map(def => {
+        const e = new Effect(def.type, def.params || {});
+        e.build(ctx);
+        return e;
+      });
+
+      // Chain: last effect → gain. each effect.output → next effect.input
+      if (this.effects.length > 0) {
+        for (let i = 0; i < this.effects.length - 1; i++) {
+          this.effects[i].output.connect(this.effects[i + 1].input);
+        }
+        this.effects[this.effects.length - 1].output.connect(this.gain);
+      }
+
+      // Pre-generate noise buffer for noise instruments
+      if (this.instrument.type === 'noise') {
+        const len = ctx.sampleRate * 2;
+        this._noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
+        const d = this._noiseBuffer.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      }
+
+      this.built = true;
+    }
+
+    // The input node that sources connect to (first effect, or gain if no effects)
+    get inputNode() {
+      return this.effects.length > 0 ? this.effects[0].input : this.gain;
+    }
+
+    // Play a note through this track's instrument and effect chain
+    play(ctx, note, time, duration, volMult = 1.0) {
+      if (!this.built) return;
+      const freq = typeof note === 'number' ? note : noteFreq(note);
+      if (freq <= 0 && this.instrument.type !== 'noise') return;
+
+      const inst = this.instrument;
+      const dest = this.inputNode;
+      const vol = volMult;
+      const atk = inst.attack || 0.01;
+      const rel = inst.release || 0.01;
+
+      if (inst.type === 'organ') {
+        // Organ: multiple harmonic stops
+        const envGain = ctx.createGain();
+        envGain.gain.setValueAtTime(0, time);
+        envGain.gain.linearRampToValueAtTime(vol, time + atk);
+        if (duration > atk + rel) {
+          envGain.gain.setValueAtTime(vol, time + duration - rel);
+        }
+        envGain.gain.linearRampToValueAtTime(0, time + duration);
+        envGain.connect(dest);
+
+        for (const stop of inst.stops) {
+          const osc = ctx.createOscillator();
+          osc.type = stop.type;
+          osc.frequency.value = freq * stop.h;
+          const sGain = ctx.createGain();
+          sGain.gain.value = stop.vol;
+          osc.connect(sGain);
+          sGain.connect(envGain);
+          osc.start(time);
+          osc.stop(time + duration + 0.05);
+        }
+      } else if (inst.type === 'choir') {
+        // Choir: formant-filtered sawtooth voices
+        const voiceCount = inst.voices || 3;
+        for (let v = 0; v < voiceCount; v++) {
+          const dt = Math.random() * 0.03;
+          const t = time + dt;
+
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth';
+          osc.frequency.value = freq;
+          osc.detune.value = (v - voiceCount / 2) * 8 + (Math.random() - 0.5) * 6;
+
+          // Vibrato
+          const vib = ctx.createOscillator();
+          const vibG = ctx.createGain();
+          vib.frequency.value = 4.2 + Math.random() * 0.8;
+          vibG.gain.value = 3;
+          vib.connect(vibG);
+          vibG.connect(osc.frequency);
+          vib.start(t);
+          vib.stop(t + duration + 0.1);
+
+          // Formant filters → merge
+          const merge = ctx.createGain();
+          merge.gain.value = 0.5 / (inst.formants.length || 1);
+          for (const fm of (inst.formants || [])) {
+            const bf = ctx.createBiquadFilter();
+            bf.type = 'bandpass';
+            bf.frequency.value = fm.freq;
+            bf.Q.value = fm.Q;
+            osc.connect(bf);
+            bf.connect(merge);
+          }
+
+          const envGain = ctx.createGain();
+          envGain.gain.setValueAtTime(0, t);
+          envGain.gain.linearRampToValueAtTime(vol / voiceCount, t + duration * (inst.attack || 0.15));
+          envGain.gain.setValueAtTime(vol / voiceCount, t + duration * (1 - (inst.release || 0.18)));
+          envGain.gain.linearRampToValueAtTime(0, t + duration);
+
+          merge.connect(envGain);
+          envGain.connect(dest);
+          osc.start(t);
+          osc.stop(t + duration + 0.05);
+        }
+      } else if (inst.type === 'noise') {
+        // Noise burst
+        if (!this._noiseBuffer) return;
+        const src = ctx.createBufferSource();
+        src.buffer = this._noiseBuffer;
+        const envGain = ctx.createGain();
+        envGain.gain.setValueAtTime(0, time);
+        envGain.gain.linearRampToValueAtTime(vol, time + (inst.attack || 0.003));
+        if (duration > 0.02) {
+          envGain.gain.setValueAtTime(vol, time + duration - (inst.release || 0.01));
+        }
+        envGain.gain.linearRampToValueAtTime(0, time + duration);
+        src.connect(envGain);
+        envGain.connect(dest);
+        src.start(time);
+        src.stop(time + duration + 0.05);
+      }
+    }
+
+    // Update all effects on this track
+    updateEffects(paramsByType) {
+      for (const e of this.effects) {
+        if (paramsByType[e.type]) {
+          e.update(paramsByType[e.type]);
+        }
+      }
+    }
+
+    setVolume(v) {
+      if (this.gain) this.gain.gain.value = v;
+    }
+  }
+
+  // ===========================================
+  // SONG - collection of tracks + sequence data
+  // ===========================================
+  // Sequence format per track:
+  //   [ ["C4", 4], ["-", 2], ["E4", 4], ... ]
+  //   note name (or "-" for rest), duration in beats
+  //
+  // A Song stores: { bpm, tracks: {name: Track}, sequences: {trackName: [...]} }
+  class Song {
+    constructor(name, bpm) {
+      this.name = name;
+      this.bpm = bpm;
+      this.tracks = {};        // name → Track
+      this.sequences = {};     // name → [["note", beats], ...]
+      this.gain = null;        // song-level GainNode
+      this.built = false;
+
+      // Playback state (managed by Scheduler)
+      this._beatIndex = 0;
+      // Per-track: which event index and how many beats consumed
+      this._trackState = {};   // trackName → { eventIdx, beatsConsumed }
+    }
+
+    addTrack(track) {
+      this.tracks[track.name] = track;
+    }
+
+    setSequence(trackName, seq) {
+      this.sequences[trackName] = seq;
+      // Ensure track state exists (build/reset may have run before sequences were set)
+      if (!this._trackState[trackName]) {
+        this._trackState[trackName] = { eventIdx: 0, beatsConsumed: 0 };
+      }
+    }
+
+    build(ctx, destination) {
+      this.gain = ctx.createGain();
+      this.gain.gain.value = 1.0;
+      this.gain.connect(destination);
+      for (const t of Object.values(this.tracks)) {
+        t.build(ctx, this.gain);
+      }
+      this.built = true;
+      this.reset();
+    }
+
+    reset() {
+      this._beatIndex = 0;
+      this._trackState = {};
+      for (const name of Object.keys(this.sequences)) {
+        this._trackState[name] = { eventIdx: 0, beatsConsumed: 0 };
+      }
+    }
+
+    setVolume(v) {
+      if (this.gain) this.gain.gain.value = Math.max(0, Math.min(1, v));
+    }
+
+    // Called by Scheduler: "beat N should play at audio time T"
+    onBeat(ctx, beatIndex, audioTime) {
+      if (!this.built) return;
+      const beatDur = 60 / this.bpm; // duration of one beat in seconds
+
+      for (const [trackName, seq] of Object.entries(this.sequences)) {
+        const track = this.tracks[trackName];
+        const state = this._trackState[trackName];
+        if (!track || !state || seq.length === 0) continue;
+
+        // Wrap around
+        const evIdx = state.eventIdx % seq.length;
+        const ev = seq[evIdx];
+        const note = ev[0];
+        const durBeats = ev[1];
+
+        // Is this the first beat of this event?
+        if (state.beatsConsumed === 0 && note !== '-') {
+          // Play the note, held for its full duration
+          const noteDur = durBeats * beatDur;
+          const vol = ev[2] !== undefined ? ev[2] : 1.0;
+          track.play(ctx, note, audioTime, noteDur, vol);
+        }
+
+        // Advance
+        state.beatsConsumed++;
+        if (state.beatsConsumed >= durBeats) {
+          state.beatsConsumed = 0;
+          state.eventIdx++;
+          // Loop
+          if (state.eventIdx >= seq.length) {
+            state.eventIdx = 0;
+          }
+        }
+      }
+
+      this._beatIndex = beatIndex;
+    }
+  }
+
+  // ===========================================
+  // SCHEDULER - single clock, drives all songs
+  // ===========================================
+  // Lookahead pattern: setInterval polls, schedules beats
+  // ahead of time using actx.currentTime for sample-accurate timing
+  const SCHED_INTERVAL = 25;   // ms between checks
+  const SCHED_AHEAD = 0.1;     // schedule beats this far ahead (seconds)
+
+  let schedSongs = [];          // Song[] - all active songs
+  let schedRunning = false;
+  let schedTimer = null;
+  let schedNextBeatTime = 0;    // actx.currentTime of next beat
+  let schedBeatIndex = 0;
+  let schedBPM = 72;            // master BPM (in quarter notes)
+
+  function schedStart(bpm) {
+    schedBPM = bpm;
+    schedBeatIndex = 0;
+    schedNextBeatTime = actx.currentTime + 0.1; // small delay
+    schedRunning = true;
+    schedTimer = setInterval(schedTick, SCHED_INTERVAL);
+  }
+
+  function schedStop() {
+    schedRunning = false;
+    if (schedTimer) { clearInterval(schedTimer); schedTimer = null; }
+  }
+
+  function schedTick() {
+    if (!actx || !schedRunning) return;
+    const beatDur = 60 / schedBPM;
+    // Schedule all beats that fall within the lookahead window
+    while (schedNextBeatTime < actx.currentTime + SCHED_AHEAD) {
+      for (const song of schedSongs) {
+        song.onBeat(actx, schedBeatIndex, schedNextBeatTime);
+      }
+      schedNextBeatTime += beatDur;
+      schedBeatIndex++;
+    }
+  }
+
+  function schedAddSong(song) {
+    if (!schedSongs.includes(song)) schedSongs.push(song);
+  }
+
+  function schedRemoveSong(song) {
+    schedSongs = schedSongs.filter(s => s !== song);
+  }
+
+  // ===========================================
+  // SFX - one-shot sequences on dedicated tracks
+  // ===========================================
+  // SFX use the same Track/Instrument system but are triggered
+  // manually (not by the scheduler). They play immediately.
+  let sfxTracks = {};  // name → Track
+
+  function buildSFX(ctx, dest) {
+    // Pre-build a few reusable SFX tracks
+    const defs = {
+      eat:       { inst: 'sfxTone',  effects: [{ type: 'filter', params: { filterType: 'lowpass', freq: 3000, Q: 1 }}] },
+      burn:      { inst: 'sfxNoise', effects: [{ type: 'filter', params: { filterType: 'bandpass', freq: 2000, Q: 0.5 }}] },
+      candleOut: { inst: 'sfxSine',  effects: [] },
+      death:     { inst: 'sfxSaw',   effects: [{ type: 'filter', params: { filterType: 'lowpass', freq: 800, Q: 2 }}] },
+      lightning: { inst: 'sfxNoise', effects: [{ type: 'filter', params: { filterType: 'lowpass', freq: 500, Q: 0.5 }}] },
+      pewBurn:   { inst: 'sfxNoise', effects: [{ type: 'filter', params: { filterType: 'bandpass', freq: 800, Q: 0.6 }}] },
+    };
+    for (const [name, def] of Object.entries(defs)) {
+      const t = new Track('sfx_' + name, def.inst, def.effects, 1.0);
+      t.build(ctx, dest);
+      sfxTracks[name] = t;
+    }
+  }
+
+  // Play a sequence of notes immediately on a named SFX track
+  // seq: [["C4", durSec, vol], ...]  - durSec in seconds (not beats)
+  function playSFXSequence(name, seq) {
+    if (!enabled || !actx) return;
+    const track = sfxTracks[name];
+    if (!track) return;
+    let t = actx.currentTime;
+    for (const ev of seq) {
+      const note = ev[0];
+      const dur = ev[1];
+      const vol = ev[2] !== undefined ? ev[2] : 0.07;
+      if (note !== '-') {
+        track.play(actx, note, t, dur, vol);
+      }
+      t += dur;
+    }
+  }
+
+  // ===========================================
+  // SFX DEFINITIONS (as note sequences)
+  // ===========================================
+  const SFX = {
+    eat: () => {
+      const startNote = corruption > 0.4 ? 'A4' : 'E4';
+      playSFXSequence('eat', [
+        [startNote, 0.06, 0.08],
+        ['C3', 0.08, 0.06],
+        ['G2', 0.10, 0.04],
+      ]);
+      // sizzle
+      playSFXSequence('burn', [
+        ['-', 0, 0], // noise doesn't use note, just triggers
+        ['A4', 0.15, 0.04],
+      ]);
+    },
+    burn: () => {
+      playSFXSequence('burn', [['A4', 0.08, 0.03]]);
+    },
+    candleOut: () => {
+      playSFXSequence('candleOut', [
+        ['E4', 0.15, 0.02],
+        ['C3', 0.3, 0.015],
+        ['A2', 0.2, 0.008],
+      ]);
+    },
+    death: () => {
+      playSFXSequence('death', [
+        ['E3', 0.3, 0.08],
+        ['C3', 0.4, 0.07],
+        ['A1', 0.8, 0.06],
+      ]);
+      // Extra growl layer
+      playSFXSequence('burn', [['A2', 0.6, 0.04]]);
+    },
+    lightning: () => {
+      playSFXSequence('lightning', [
+        ['A5', 0.04, 0.07],   // crack
+        ['-', 0.02, 0],
+        ['A3', 0.5, 0.04],    // rumble
+        ['A2', 0.4, 0.03],
+      ]);
+    },
+    pewBurn: () => {
+      playSFXSequence('pewBurn', [
+        ['A4', 0.08, 0.05],   // snap
+        ['-', 0.05, 0],
+        ['A3', 0.3, 0.03],    // crackle
+      ]);
+    },
+  };
+
+  // ===========================================
+  // DRONE - persistent ambient layer
+  // ===========================================
+  let droneNodes = [];
+
+  function buildDrone(ctx, dest) {
+    // Deep sub-bass beating
+    [32.7, 33.1, 65.4].forEach((f, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      g.gain.value = i < 2 ? 0.020 : 0.010;
+      o.connect(g);
+      g.connect(dest);
+      o.start();
+      droneNodes.push(o);
+    });
+    // Room ambience
+    const len = ctx.sampleRate * 2;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = 180;
+    const g = ctx.createGain();
+    g.gain.value = 0.007;
+    src.connect(filt);
+    filt.connect(g);
+    g.connect(dest);
+    src.start();
+    droneNodes.push(src);
+  }
+
+  // ===========================================
+  // BELLS - periodic atmospheric bells
+  // ===========================================
+  let bellTimer = null;
+  let bellTrack = null;
+
+  function buildBells(ctx, dest) {
+    bellTrack = new Track('bells', 'sfxSine', [
+      { type: 'reverb', params: { decay: 3.0, mix: 0.5 } }
+    ], 0.8);
+    bellTrack.build(ctx, dest);
+  }
+
+  function scheduleBell() {
+    if (!enabled || !actx || !bellTrack) return;
+    const t = actx.currentTime;
+    const fund = corruption > 0.5 ? 95 + Math.random() * 25 : 220 + Math.random() * 40;
+    // Bell partials: each partial is a separate play
+    const partials = [1, 2.2, 3.1, 4.6];
+    for (const p of partials) {
+      bellTrack.play(actx, fund * p, t, 3.5, 0.012 / p);
+    }
+    bellTimer = setTimeout(scheduleBell, 8000 + Math.random() * 16000);
+  }
+
+  // ===========================================
+  // SONG BUILDING - Pure + Dark hymns
+  // ===========================================
+  let pureSong = null;
+  let darkSong = null;
+
+  // Shared reverb for the master bus
+  let masterReverb = null;
+
+  function buildSongs(ctx, dest) {
+    // Master reverb (church acoustics)
+    masterReverb = new Effect('reverb', { decay: 2.8, mix: 0.25 });
+    masterReverb.build(ctx);
+    masterReverb.output.connect(dest);
+    const reverbDest = masterReverb.input;
+
+    const BPM = 72; // quarter note = 72 BPM
+
+    // ---- PURE SONG (C major hymn) ----
+    pureSong = new Song('pure', BPM);
+    pureSong.addTrack(new Track('bass',    'organBass',    [], 0.35));
+    pureSong.addTrack(new Track('tenor',   'organTenor',   [], 0.25));
+    pureSong.addTrack(new Track('alto',    'organAlto',    [], 0.22));
+    pureSong.addTrack(new Track('soprano', 'organSoprano', [], 0.25));
+    pureSong.addTrack(new Track('pedal',   'organPedal',   [], 0.30));
+    pureSong.addTrack(new Track('choir',   'choir',        [], 0.00)); // starts silent
+
+    // ---- DARK SONG (C minor / diminished) ----
+    darkSong = new Song('dark', BPM);
+    darkSong.addTrack(new Track('bass',    'organBass',
+      [{ type: 'distortion', params: { amount: 0 } }], 0.35));
+    darkSong.addTrack(new Track('tenor',   'organTenor',
+      [{ type: 'distortion', params: { amount: 0 } },
+       { type: 'tremolo',    params: { rate: 5, depth: 0 } }], 0.25));
+    darkSong.addTrack(new Track('alto',    'organAlto',
+      [{ type: 'distortion', params: { amount: 0 } },
+       { type: 'tremolo',    params: { rate: 5.5, depth: 0 } }], 0.22));
+    darkSong.addTrack(new Track('soprano', 'organSoprano',
+      [{ type: 'distortion', params: { amount: 0 } },
+       { type: 'tremolo',    params: { rate: 6, depth: 0 } }], 0.25));
+    darkSong.addTrack(new Track('pedal',   'organPedal',
+      [{ type: 'filter',     params: { filterType: 'lowpass', freq: 200, Q: 2 } }], 0.30));
+    darkSong.addTrack(new Track('choir',   'choir',
+      [{ type: 'filter',     params: { filterType: 'lowpass', freq: 1500, Q: 1 } }], 0.25));
+
+    pureSong.build(ctx, reverbDest);
+    darkSong.build(ctx, reverbDest);
+
+    // Start dark song silent
+    pureSong.setVolume(1.0);
+    darkSong.setVolume(0.0);
+
+    // ---- SEQUENCE DATA ----
+    // Placeholder: simple C major / C minor hymn
+    // Format: ["note", beats] or ["-", beats] for rest
+    // This will be replaced with real Catholic hymn data later
+    // For now: 16-bar structure, 4 beats per bar = 64 beats total
+
+    // Pure sequences (C major - "Abide With Me" style)
+    pureSong.setSequence('bass',    [["C2",4],["C2",4],["F2",4],["F2",4],["E2",4],["G2",4],["C2",8],["C2",4],["D2",4],["A1",4],["E2",4],["F2",4],["D2",4],["G2",4],["C2",4],["C2",8],]);
+    pureSong.setSequence('tenor',   [["G2",4],["G2",4],["A2",4],["A2",4],["G2",4],["B2",4],["G2",8],["G2",4],["A2",4],["E2",4],["G2",4],["A2",4],["A2",4],["B2",4],["G2",4],["G2",8],]);
+    pureSong.setSequence('alto',    [["E3",4],["E3",4],["C3",2],["F3",2],["C3",4],["C3",4],["D3",4],["E3",8],["E3",4],["D3",4],["A2",4],["B2",4],["C3",4],["A2",4],["D3",4],["G3",4],["E3",8],]);
+    pureSong.setSequence('soprano', [["C4",4],["B3",2],["C4",2],["A3",4],["A3",2],["G3",2],["G3",4],["G3",4],["C4",8],["C4",4],["D4",4],["E4",4],["E4",4],["D4",4],["C4",4],["B3",4],["C4",8],]);
+    pureSong.setSequence('pedal',   [["C1",8],["F1",8],["C1",4],["G1",4],["C1",8],["C1",8],["A0",4],["E1",4],["F1",4],["D1",4],["G1",4],["C1",4],["C1",8],]);
+    pureSong.setSequence('choir',   [["C4",4],["B3",2],["C4",2],["A3",4],["A3",2],["G3",2],["G3",4],["G3",4],["C4",8],["C4",4],["D4",4],["E4",4],["E4",4],["D4",4],["C4",4],["B3",4],["C4",8],]);
+
+    // Dark sequences (C minor / diminished - same rhythm, minor intervals)
+    darkSong.setSequence('bass',    [["C2",4],["C2",4],["F2",4],["F2",4],["Eb2",4],["G2",4],["C2",8],["C2",4],["D2",4],["Ab1",4],["Eb2",4],["F2",4],["D2",4],["G2",4],["C2",4],["C2",8],]);
+    darkSong.setSequence('tenor',   [["G2",4],["G2",4],["Ab2",4],["Ab2",4],["G2",4],["Bb2",4],["G2",8],["G2",4],["Ab2",4],["Eb2",4],["G2",4],["Ab2",4],["Ab2",4],["Bb2",4],["G2",4],["G2",8],]);
+    darkSong.setSequence('alto',    [["Eb3",4],["Eb3",4],["C3",2],["F3",2],["C3",4],["C3",4],["Db3",4],["Eb3",8],["Eb3",4],["Db3",4],["Ab2",4],["Bb2",4],["C3",4],["Ab2",4],["Db3",4],["G3",4],["Eb3",8],]);
+    darkSong.setSequence('soprano', [["C4",4],["Bb3",2],["C4",2],["Ab3",4],["Ab3",2],["G3",2],["G3",4],["G3",4],["C4",8],["C4",4],["Db4",4],["Eb4",4],["Eb4",4],["Db4",4],["C4",4],["Bb3",4],["C4",8],]);
+    darkSong.setSequence('pedal',   [["C1",8],["F1",8],["C1",4],["G1",4],["C1",8],["C1",8],["Ab0",4],["Eb1",4],["F1",4],["D1",4],["G1",4],["C1",4],["C1",8],]);
+    darkSong.setSequence('choir',   [["C4",4],["Bb3",2],["C4",2],["Ab3",4],["Ab3",2],["G3",2],["G3",4],["G3",4],["C4",8],["C4",4],["Db4",4],["Eb4",4],["Eb4",4],["Db4",4],["C4",4],["Bb3",4],["C4",8],]);
+
+    schedAddSong(pureSong);
+    schedAddSong(darkSong);
+    schedStart(BPM);
+  }
+
+  // ===========================================
+  // CORRUPTION - crossfade + effect modulation
+  // ===========================================
+  function applyCorruption() {
+    if (!pureSong || !darkSong) return;
+
+    // Crossfade songs
+    pureSong.setVolume(1 - corruption);
+    darkSong.setVolume(corruption);
+
+    // Choir fades in with corruption (on both songs)
+    const choirPure = pureSong.tracks['choir'];
+    const choirDark = darkSong.tracks['choir'];
+    if (choirPure) choirPure.setVolume(corruption * 0.20);
+    if (choirDark) choirDark.setVolume(corruption * 0.25);
+
+    // Modulate dark song effects
+    const dist = corruption * 80;
+    const tremDepth = corruption * 0.3;
+    for (const t of Object.values(darkSong.tracks)) {
+      t.updateEffects({
+        distortion: { amount: dist },
+        tremolo:    { depth: tremDepth },
+      });
+    }
+
+    // Reverb wet increases with corruption
+    if (masterReverb) {
+      masterReverb.update({ mix: 0.25 + corruption * 0.25 });
+    }
+  }
+
+  // ===========================================
+  // PUBLIC API (backwards-compatible)
+  // ===========================================
+  function init() {
+    if (actx) return;
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    master = actx.createGain();
+    master.gain.value = 0.38;
+    master.connect(actx.destination);
+  }
+
+  function resume() {
+    if (actx?.state === 'suspended') actx.resume();
+  }
+
+  function setCorruption(v) {
+    corruption = Math.max(0, Math.min(1, v));
+    applyCorruption();
+  }
+
+  function setEnabled(v) {
+    enabled = v;
+    if (!v) {
+      schedStop();
+      for (const n of droneNodes) { try { n.stop(); } catch (e) {} }
+      droneNodes = [];
+      if (bellTimer) { clearTimeout(bellTimer); bellTimer = null; }
+      started = false;
+    } else if (!started) {
+      init();
+      resume();
+      started = true;
+      buildDrone(actx, master);
+      buildSFX(actx, master);
+      buildBells(actx, master);
+      buildSongs(actx, master);
+      scheduleBell();
+      applyCorruption();
+    }
+  }
+
+  function toggle() {
+    setEnabled(!enabled);
+    return enabled;
+  }
+
+  // SFX public wrappers
+  function playEat()       { if (enabled) SFX.eat(); }
+  function playBurn()      { if (enabled) SFX.burn(); }
+  function playCandleOut() { if (enabled) SFX.candleOut(); }
+  function playDeath()     { if (enabled) SFX.death(); }
+  function playLightning() { if (enabled) SFX.lightning(); }
+  function playPewBurn()   { if (enabled) SFX.pewBurn(); }
+
+  return {
+    init, resume, setEnabled, toggle, setCorruption,
+    playEat, playBurn, playCandleOut, playDeath, playLightning, playPewBurn,
+    isEnabled: () => enabled,
+    // Expose internals for future use
+    getContext: () => actx,
+    getSong: (name) => name === 'pure' ? pureSong : name === 'dark' ? darkSong : null,
+  };
+})();
+
+// =========================================
+// CHURCH ENVIRONMENT
+// =========================================
+const Church = (() => {
+  let pews = [];
+  let pewGrid = null;
+  let cols = 0, rows = 0;
+  let corruption = 0;        // Master 0→1
+  let tileCorr = {};         // "x,y" → intensity
+  let glyphGrowth = 0;       // 0→1, grows with corruption
+  let glyphAngle = 0;
+  let bloodPools = [];
+  let stainedGlass = [];
+  let lightningTimer = 0;
+  let lightningAlpha = 0;
+  let candlesEaten = 0;
+  let cracks = [];      // {x, y, angle, len} - permanent floor cracks
+  let statues = [];     // {x, y, side, crying, tearY}
+
+  // --- Level generation ---
+  function generate(c, r) {
+    cols = c; rows = r;
+    pews = [];
+    bloodPools = [];
+    tileCorr = {};
+    corruption = 0;
+    glyphGrowth = 0;
+    glyphAngle = 0;
+    lightningTimer = 8000 + Math.random() * 12000;
+    lightningAlpha = 0;
+    candlesEaten = 0;
+    cracks = [];
+    statues = [];
+
+    const aisleX = Math.floor(c / 2);
+    const aisleW = 2;
+    // Pews start at row 7 (altar is 3 deep + gap)
+    for (let row = 7; row < r - 2; row += 3) {
+      const lS = 2, lE = aisleX - Math.floor(aisleW/2) - 1;
+      if (lE > lS + 1) pews.push({ x:lS, y:row, w:lE-lS, h:1, burning:false, burnT:0, dead:false });
+      const rS = aisleX + Math.ceil(aisleW/2) + 1, rE = c - 2;
+      if (rE > rS + 1) pews.push({ x:rS, y:row, w:rE-rS, h:1, burning:false, burnT:0, dead:false });
+    }
+
+    // Stained glass windows on walls
+    stainedGlass = [];
+    const spacing = Math.max(3, Math.floor(r / 4));
+    for (let wy = 4; wy < r - 2; wy += spacing) {
+      stainedGlass.push({ side:0, y:wy, hue: Math.random()*360, pat: Math.floor(Math.random()*3) });
+      stainedGlass.push({ side:1, y:wy, hue: Math.random()*360, pat: Math.floor(Math.random()*3) });
+    }
+
+    // Statues in naves near stained glass windows
+    for (const w of stainedGlass) {
+      const sx = w.side === 0 ? 1 : c - 2;
+      const sy = w.y;
+      // Check not on a pew
+      const onPew = pews.some(p => sy === p.y && sx >= p.x && sx < p.x + p.w);
+      if (!onPew && sy > 3 && sy < r - 2) {
+        statues.push({ x: sx, y: sy, side: w.side, crying: false, tearY: 0, bloodSpawned: false });
+      }
+    }
+
+    rebuildPewGrid();
+  }
+
+  function rebuildPewGrid() {
+    pewGrid = new Uint8Array(cols * rows);
+    for (const p of pews) {
+      if (p.dead) continue;
+      for (let dx = 0; dx < p.w; dx++) {
+        const px = p.x+dx, py = p.y;
+        if (px >= 0 && px < cols && py >= 0 && py < rows) pewGrid[py*cols+px] = 1;
+      }
+    }
+    // Altar: 6 wide, 3 deep, top center
+    const ax = Math.floor(cols/2) - 3;
+    for (let dx = 0; dx < 6; dx++) for (let dy = 0; dy < 3; dy++) {
+      const x = ax+dx, y = dy;
+      if (x >= 0 && x < cols && y >= 0 && y < rows) pewGrid[y*cols+x] = 1;
+    }
+    // Statues
+    for (const s of statues) {
+      if (s.x >= 0 && s.x < cols && s.y >= 0 && s.y < rows) pewGrid[s.y*cols+s.x] = 1;
+    }
+  }
+
+  function getPewGrid() { return pewGrid; }
+
+  // --- Pew burning ---
+  function tryBurnPewsNear(cx, cy) {
+    let burned = false;
+    for (const p of pews) {
+      if (p.dead || p.burning) continue;
+      for (let dx = 0; dx < p.w; dx++) {
+        if (Math.abs(p.x+dx - cx) + Math.abs(p.y - cy) <= 1) {
+          p.burning = true; p.burnT = 0; burned = true;
+          AudioEngine.playPewBurn();
+          break;
+        }
+      }
+    }
+    return burned;
+  }
+
+  function getBurningPews() { return pews.filter(p => p.burning && !p.dead); }
+
+  // --- Corruption ---
+  function setCorruption(v) {
+    corruption = Math.max(0, Math.min(1, v));
+    AudioEngine.setCorruption(corruption);
+  }
+  function getCorruption() { return corruption; }
+
+  function addTileCorr(x, y) {
+    tileCorr[x+','+y] = Math.min((tileCorr[x+','+y]||0) + 0.12, 1);
+  }
+
+  // --- Blood ---
+  function spawnBlood(x, y) {
+    if (corruption < 0.3 || bloodPools.length > 20) return;
+    bloodPools.push({ x, y, r: 0.3+Math.random()*0.5, a:0, ta: 0.12+corruption*0.35, angle: Math.random()*6.28 });
+  }
+
+  // --- Update ---
+  function update(dt, now) {
+    // Pew burning
+    let changed = false;
+    for (const p of pews) {
+      if (p.burning && !p.dead) {
+        p.burnT += dt * 1000;
+        if (p.burnT > 3500) { p.dead = true; changed = true; }
+      }
+    }
+    if (changed) rebuildPewGrid();
+
+    // Tile corruption decay
+    for (const k in tileCorr) {
+      tileCorr[k] -= 0.00015 * dt * 60;
+      if (tileCorr[k] <= 0) delete tileCorr[k];
+    }
+
+    // Glyph only begins after windows have gone red (corruption > 0.5)
+    const glyphTarget = corruption > 0.5 ? (corruption - 0.5) * 2 : 0;
+    glyphGrowth += (glyphTarget - glyphGrowth) * dt * 0.3;
+    if (glyphGrowth < 0.005) glyphGrowth = 0;
+    glyphAngle += dt * (0.08 + corruption * 0.25);
+
+    // Blood pools expand slowly
+    for (const b of bloodPools) {
+      b.a = Math.min(b.a + dt * 0.06, b.ta);
+      b.r = Math.min(b.r + dt * 0.003, 1.4);
+    }
+
+    // Lightning
+    lightningTimer -= dt * 1000;
+    if (lightningTimer <= 0) {
+      lightningTimer = (8000 + Math.random() * 14000) / (1 + corruption * 0.6);
+      lightningAlpha = 1;
+      AudioEngine.playLightning();
+    }
+    if (lightningAlpha > 0) lightningAlpha = Math.max(0, lightningAlpha - dt * 3.5);
+
+    // Statues start crying blood at high corruption (demon phase)
+    for (const s of statues) {
+      if (corruption > 0.6 && !s.crying) s.crying = true;
+      if (s.crying) {
+        s.tearY = Math.min(s.tearY + dt * 8, 1);
+        // Periodically spawn blood pools beneath statues
+        if (!s.bloodSpawned && s.tearY > 0.5) {
+          spawnBlood(s.x, s.y + 1);
+          s.bloodSpawned = true;
+        }
+        if (s.tearY >= 1 && Math.random() < dt * 0.3) {
+          spawnBlood(s.x, s.y + 1);
+        }
+      }
+    }
+  }
+
+  // =========================================
+  // DRAWING
+  // =========================================
+
+  function drawTiles(ctx, G, now) {
+    for (let x = 0; x < cols; x++) for (let y = 0; y < rows; y++) {
+      const dark = (x+y)%2===0;
+      const seed = Math.sin(x*127.1+y*311.7)*0.5+0.5;
+      const l = (dark ? 8 : 11) + seed * 3;
+      ctx.fillStyle = `hsl(25,8%,${l}%)`;
+      ctx.fillRect(x*G, y*G, G, G);
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x*G+0.5, y*G+0.5, G-1, G-1);
+      // Tile corruption glow
+      const tc = tileCorr[x+','+y]||0;
+      if (tc > 0) {
+        ctx.fillStyle = `hsla(${8+Math.sin(now*0.003+x+y)*8},100%,${28+tc*18}%,${tc*0.35})`;
+        ctx.fillRect(x*G, y*G, G, G);
+        if (tc > 0.25) {
+          ctx.strokeStyle = `rgba(180,40,0,${tc*0.4})`;
+          ctx.lineWidth = 0.7;
+          ctx.beginPath();
+          const cx2=x*G+G*0.5, cy2=y*G+G*0.5;
+          ctx.moveTo(cx2-G*0.3, cy2); ctx.lineTo(cx2+G*0.15, cy2-G*0.2); ctx.lineTo(cx2+G*0.3, cy2+G*0.1);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function drawBlood(ctx, G, now) {
+    for (const b of bloodPools) {
+      if (b.a < 0.01) continue;
+      const bx = b.x*G+G/2, by = b.y*G+G/2, br = b.r*G;
+      const pulse = Math.sin(now*0.002+b.x+b.y)*0.02;
+      const grad = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+      grad.addColorStop(0, `rgba(70,0,0,${b.a+pulse})`);
+      grad.addColorStop(0.6, `rgba(45,0,0,${(b.a+pulse)*0.5})`);
+      grad.addColorStop(1, 'rgba(30,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(bx, by, br, br*0.7, b.angle, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawAltar(ctx, G, now) {
+    const ax = Math.floor(cols/2)-3;
+    const altarW = 6; // wider
+    const altarH = 3; // taller
+    const px = ax*G, aW = altarW*G, aH = altarH*G;
+
+    // Stone altar base — warmer, brighter
+    const ag = ctx.createLinearGradient(px, 0, px, aH);
+    ag.addColorStop(0, '#4a3830'); ag.addColorStop(0.5, '#3d2d25'); ag.addColorStop(1, '#2a1c16');
+    ctx.fillStyle = ag;
+    ctx.fillRect(px+2, 2, aW-4, aH-2);
+
+    // Stone texture lines
+    ctx.strokeStyle = 'rgba(80,60,45,0.3)';
+    ctx.lineWidth = 0.5;
+    for (let i = 1; i < altarH; i++) {
+      ctx.beginPath();
+      ctx.moveTo(px+4, i*G);
+      ctx.lineTo(px+aW-4, i*G + Math.sin(i*3.7)*2);
+      ctx.stroke();
+    }
+
+    // Gold trim — brighter, double line
+    const trimAlpha = 0.5 - corruption * 0.3;
+    ctx.strokeStyle = `rgba(210,175,90,${trimAlpha})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px+3, 3, aW-6, aH-4);
+    ctx.strokeStyle = `rgba(180,145,70,${trimAlpha*0.6})`;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px+6, 6, aW-12, aH-10);
+
+    // Altar cloth
+    const clothH = 6;
+    const clothHue = corruption > 0.4 ? 0 : 120 - corruption * 200;
+    ctx.fillStyle = `hsl(${clothHue},${25+corruption*45}%,${18+corruption*6}%)`;
+    ctx.fillRect(px+8, aH-clothH-2, aW-16, clothH);
+    // Cloth fringe
+    ctx.fillStyle = `rgba(210,175,90,${trimAlpha*0.7})`;
+    ctx.fillRect(px+8, aH-clothH-2, aW-16, 1.5);
+
+    // Candelabra marks on altar edges
+    for (const cx2 of [px+G*0.8, px+aW-G*0.8]) {
+      ctx.fillStyle = `rgba(210,175,90,${trimAlpha})`;
+      ctx.beginPath(); ctx.arc(cx2, G*0.8, 2.5, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Cross — gradually inverts
+    const crossX = (ax+3)*G, crossY = aH + G*0.4;
+    ctx.save();
+    ctx.translate(crossX, crossY);
+    const inv = corruption > 0.55 ? Math.min((corruption-0.55)*2.2, 1) : 0;
+    ctx.rotate(Math.PI * inv);
+    ctx.strokeStyle = `rgba(210,175,90,${Math.max(0.45-corruption*0.2, 0.08)})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -G*1.0); ctx.lineTo(0, G*0.8);
+    ctx.moveTo(-G*0.5, -G*0.3); ctx.lineTo(G*0.5, -G*0.3);
+    ctx.stroke();
+    // Corruption makes cross glow red
+    if (corruption > 0.5) {
+      ctx.strokeStyle = `rgba(200,30,0,${(corruption-0.5)*0.5})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Altar glow at high corruption
+    if (corruption > 0.4) {
+      const gA = (corruption-0.4)*0.15;
+      const glow = ctx.createRadialGradient(px+aW/2, aH/2, 0, px+aW/2, aH/2, aW*0.6);
+      glow.addColorStop(0, `rgba(180,30,0,${gA})`);
+      glow.addColorStop(1, 'rgba(100,0,0,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(px+aW/2, aH/2, aW*0.6, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawPews(ctx, G, now) {
+    for (const p of pews) {
+      if (p.dead) continue;
+      for (let dx = 0; dx < p.w; dx++) {
+        const px = (p.x+dx)*G, py = p.y*G;
+        if (p.burning) {
+          const bt = Math.min(p.burnT / 3500, 1);
+          // Darkening wood
+          const wl = 22 - bt * 12;
+          ctx.fillStyle = `hsl(${18-bt*10},${35+bt*20}%,${wl}%)`;
+          ctx.fillRect(px+1, py+1, G-2, G-2);
+          // Bright fire overlay
+          const fireA = 0.3 + bt * 0.4 + Math.sin(now * 0.015 + dx * 2.1) * 0.08;
+          const fireHue = 20 + Math.sin(now * 0.01 + dx) * 15;
+          ctx.fillStyle = `hsla(${fireHue},100%,${55 - bt*10}%,${fireA})`;
+          ctx.fillRect(px+2, py+2, G-4, G-4);
+          // Bright embers/sparks
+          const sparkA = 0.4 + Math.sin(now * 0.02 + dx * 3.7) * 0.2;
+          ctx.fillStyle = `hsla(45,100%,80%,${sparkA * bt})`;
+          const sx = px + 3 + Math.sin(now * 0.008 + dx) * (G * 0.3);
+          const sy = py + 3 + Math.cos(now * 0.01 + dx * 1.3) * (G * 0.25);
+          ctx.beginPath(); ctx.arc(sx, sy, 1.5 + bt, 0, Math.PI * 2); ctx.fill();
+          // Flame glow around the pew
+          if (bt > 0.15) {
+            const gR = G * (0.8 + bt * 0.8);
+            const glow = ctx.createRadialGradient(px+G/2, py+G/2, 0, px+G/2, py+G/2, gR);
+            glow.addColorStop(0, `rgba(255,100,20,${bt * 0.12})`);
+            glow.addColorStop(1, 'rgba(200,40,0,0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(px+G/2, py+G/2, gR, 0, Math.PI*2); ctx.fill();
+          }
+        } else {
+          // Normal pew — warm visible wood
+          const seed = Math.sin(dx * 31.7 + p.y * 17.3) * 0.5 + 0.5;
+          const woodH = 25 + seed * 8;
+          const woodS = 40 + seed * 15;
+          const woodL = 28 + seed * 8;
+          // Pew body
+          ctx.fillStyle = `hsl(${woodH},${woodS}%,${woodL}%)`;
+          ctx.fillRect(px+1, py+1, G-2, G-2);
+          // Top rail highlight
+          ctx.fillStyle = `hsl(${woodH+3},${woodS-5}%,${woodL+10}%)`;
+          ctx.fillRect(px+2, py+1, G-4, 3);
+          // Wood grain lines
+          ctx.strokeStyle = `hsla(${woodH-5},${woodS}%,${woodL-8}%,0.4)`;
+          ctx.lineWidth = 0.5;
+          for (let g = 0; g < 3; g++) {
+            const gy = py + 4 + g * (G * 0.25);
+            ctx.beginPath();
+            ctx.moveTo(px+2, gy);
+            ctx.lineTo(px+G-2, gy + Math.sin(seed+g)*1.5);
+            ctx.stroke();
+          }
+          // Bottom shadow
+          ctx.fillStyle = `hsl(${woodH},${woodS}%,${woodL-10}%)`;
+          ctx.fillRect(px+1, py+G-3, G-2, 2);
+        }
+        // End caps with cross detail
+        if (dx === 0 || dx === p.w - 1) {
+          const capLum = p.burning ? 12 : 35;
+          ctx.fillStyle = `hsl(22,40%,${capLum}%)`;
+          ctx.fillRect(dx===0 ? px+1 : px+G-4, py+1, 3, G-2);
+          if (!p.burning) {
+            const capX = dx===0 ? px+2.5 : px+G-2.5;
+            ctx.strokeStyle = `rgba(200,160,80,0.3)`; ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(capX, py+G*0.25); ctx.lineTo(capX, py+G*0.75);
+            ctx.moveTo(capX-2, py+G*0.4); ctx.lineTo(capX+2, py+G*0.4);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+  }
+
+  function drawStainedGlass(ctx, G, now) {
+    const lFlash = lightningAlpha; // lightning flash intensity
+    for (const w of stainedGlass) {
+      const wx = w.side === 0 ? 0 : (cols-1)*G;
+      const wy = w.y * G;
+      const wH = G * 2.5;
+      const c = corruption;
+
+      // Window frame
+      ctx.fillStyle = '#1a1210';
+      ctx.fillRect(wx, wy - wH*0.5, G, wH);
+
+      // Glass panels
+      const panels = 4;
+      for (let i = 0; i < panels; i++) {
+        const panelY = wy - wH*0.4 + (wH*0.8/panels)*i;
+        const panelH = wH*0.8/panels - 2;
+        const origHue = (w.hue + i*70) % 360;
+        const targetHue = 10 + Math.sin(now*0.001+i)*8;
+        const hue = origHue + (targetHue - origHue) * c;
+        const sat = 55 + c * 35;
+        const lum = 30 + c * 22;
+        const alpha = 0.15 + c * 0.25 + Math.sin(now*0.002+i)*0.03 + lFlash * 0.5;
+        ctx.fillStyle = `hsla(${hue},${sat}%,${lum}%,${alpha})`;
+        ctx.fillRect(wx+1, panelY, G-2, panelH);
+        // Bright center pane
+        ctx.fillStyle = `hsla(${hue},${sat+10}%,${lum+15}%,${alpha*0.5})`;
+        ctx.fillRect(wx+3, panelY+2, G-6, panelH-4);
+      }
+
+      // Lightning flash: entire window lights up bright white/yellow
+      if (lFlash > 0.1) {
+        const flashHue = c > 0.5 ? 20 : 50;
+        ctx.fillStyle = `hsla(${flashHue},80%,80%,${lFlash * 0.6})`;
+        ctx.fillRect(wx+1, wy - wH*0.4, G-2, wH*0.8);
+      }
+
+      // ---- Directional light beam (wedge/cone) ----
+      const castDir = w.side === 0 ? 1 : -1;
+      const beamOriginX = w.side === 0 ? G : (cols-1)*G;
+      const beamLen = G * (5 + c * 5);
+      const beamSpread = G * 1.8; // half-width at far end
+      const lightHue = c < 0.4 ? w.hue : w.hue + (12-w.hue)*Math.min((c-0.4)/0.6, 1);
+      const lightAlpha = 0.04 + c * 0.06 + Math.sin(now*0.001+w.y*0.3)*0.012 + lFlash * 0.35;
+
+      ctx.save();
+      // Draw a trapezoidal beam shape
+      const farX = beamOriginX + castDir * beamLen;
+      ctx.beginPath();
+      ctx.moveTo(beamOriginX, wy - wH*0.35);
+      ctx.lineTo(beamOriginX, wy + wH*0.35);
+      ctx.lineTo(farX, wy + beamSpread);
+      ctx.lineTo(farX, wy - beamSpread);
+      ctx.closePath();
+
+      // Gradient along the beam length
+      const bGrad = ctx.createLinearGradient(beamOriginX, wy, farX, wy);
+      bGrad.addColorStop(0, `hsla(${lightHue},${50+c*40}%,${35+c*20}%,${lightAlpha*1.8})`);
+      bGrad.addColorStop(0.3, `hsla(${lightHue},${45+c*35}%,${30+c*15}%,${lightAlpha})`);
+      bGrad.addColorStop(0.7, `hsla(${lightHue},${40+c*30}%,${25+c*10}%,${lightAlpha*0.4})`);
+      bGrad.addColorStop(1, 'hsla(0,0%,0%,0)');
+      ctx.fillStyle = bGrad;
+      ctx.fill();
+
+      // Bright core beam (narrower, brighter)
+      ctx.beginPath();
+      ctx.moveTo(beamOriginX, wy - wH*0.15);
+      ctx.lineTo(beamOriginX, wy + wH*0.15);
+      ctx.lineTo(farX, wy + beamSpread*0.4);
+      ctx.lineTo(farX, wy - beamSpread*0.4);
+      ctx.closePath();
+      const cGrad = ctx.createLinearGradient(beamOriginX, wy, farX, wy);
+      cGrad.addColorStop(0, `hsla(${lightHue},${60+c*30}%,${45+c*20}%,${lightAlpha*1.2})`);
+      cGrad.addColorStop(0.5, `hsla(${lightHue},${50+c*25}%,${35+c*15}%,${lightAlpha*0.5})`);
+      cGrad.addColorStop(1, 'hsla(0,0%,0%,0)');
+      ctx.fillStyle = cGrad;
+      ctx.fill();
+      ctx.restore();
+
+      // Late-game hellfire glow behind windows
+      if (c > 0.5) {
+        const hG = (c-0.5)*2;
+        const pulse = Math.sin(now*0.004+w.y*0.5)*0.3+0.7;
+        const hx = wx + G*0.5;
+        const hR = G * 4;
+        const hGrad = ctx.createRadialGradient(hx, wy, 0, hx+castDir*G, wy, hR);
+        hGrad.addColorStop(0, `rgba(255,80,10,${hG*pulse*0.2})`);
+        hGrad.addColorStop(0.4, `rgba(200,40,0,${hG*pulse*0.1})`);
+        hGrad.addColorStop(1, 'rgba(100,0,0,0)');
+        ctx.fillStyle = hGrad;
+        ctx.beginPath();
+        ctx.arc(hx+castDir*G*0.5, wy, hR, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // --- Floor cracks (persist after hellfire consumed) ---
+  function addCrack(x, y) {
+    // Add 2-4 crack lines radiating from point
+    const count = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      cracks.push({
+        x, y,
+        angle: Math.random() * Math.PI * 2,
+        len: 0.3 + Math.random() * 0.7,
+        branch: Math.random() < 0.4,
+        branchAngle: (Math.random() - 0.5) * 1.2,
+      });
+    }
+  }
+
+  function drawCracks(ctx, G, now) {
+    if (cracks.length === 0) return;
+    for (const cr of cracks) {
+      const cx2 = cr.x * G + G/2, cy2 = cr.y * G + G/2;
+      const ex = cx2 + Math.cos(cr.angle) * cr.len * G;
+      const ey = cy2 + Math.sin(cr.angle) * cr.len * G;
+
+      // Red glow in crack
+      const glowA = 0.15 + corruption * 0.2 + Math.sin(now * 0.003 + cr.angle) * 0.05;
+      ctx.strokeStyle = `rgba(180,30,0,${glowA})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx2, cy2);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      // Dark crack line on top
+      ctx.strokeStyle = `rgba(10,0,0,0.7)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx2, cy2);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      // Branch
+      if (cr.branch) {
+        const mx = (cx2 + ex) / 2, my = (cy2 + ey) / 2;
+        const bAngle = cr.angle + cr.branchAngle;
+        const bx = mx + Math.cos(bAngle) * cr.len * G * 0.4;
+        const by = my + Math.sin(bAngle) * cr.len * G * 0.4;
+        ctx.strokeStyle = `rgba(140,20,0,${glowA * 0.7})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(bx, by); ctx.stroke();
+        ctx.strokeStyle = `rgba(10,0,0,0.5)`;
+        ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(bx, by); ctx.stroke();
+      }
+    }
+  }
+
+  // --- Statues (top-down view: stone circle with details) ---
+  function drawStatues(ctx, G, now) {
+    for (const s of statues) {
+      const sx2 = s.x * G + G/2, sy2 = s.y * G + G/2;
+      const r = G * 0.4;
+
+      // Base pedestal
+      ctx.fillStyle = '#3a3530';
+      ctx.fillRect(s.x * G + 2, s.y * G + 2, G - 4, G - 4);
+
+      // Figure (oval, lighter stone)
+      const figHue = s.crying ? 0 : 30;
+      const figSat = s.crying ? 10 : 6;
+      const figLum = s.crying ? 32 : 40;
+      ctx.fillStyle = `hsl(${figHue},${figSat}%,${figLum}%)`;
+      ctx.beginPath();
+      ctx.ellipse(sx2, sy2, r * 0.7, r, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Head (small circle)
+      const headDir = s.side === 0 ? 1 : -1;
+      ctx.fillStyle = `hsl(${figHue},${figSat}%,${figLum + 5}%)`;
+      ctx.beginPath();
+      ctx.arc(sx2 + headDir * r * 0.15, sy2 - r * 0.55, r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Halo (fading with corruption)
+      if (corruption < 0.7) {
+        const haloA = 0.2 * (1 - corruption);
+        ctx.strokeStyle = `rgba(210,190,120,${haloA})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(sx2 + headDir * r * 0.15, sy2 - r * 0.55, r * 0.55, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Crying blood tears
+      if (s.crying) {
+        const tearA = Math.min(s.tearY, 1);
+        // Eyes (tiny red dots)
+        const headX = sx2 + headDir * r * 0.15;
+        const headY = sy2 - r * 0.55;
+        for (const eOff of [-0.12, 0.12]) {
+          ctx.fillStyle = `rgba(120,0,0,${tearA * 0.8})`;
+          ctx.beginPath();
+          ctx.arc(headX + eOff * G, headY, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+          // Tear streaks
+          const tearLen = tearA * r * 1.8;
+          const tGrad = ctx.createLinearGradient(headX + eOff * G, headY, headX + eOff * G, headY + tearLen);
+          tGrad.addColorStop(0, `rgba(100,0,0,${tearA * 0.6})`);
+          tGrad.addColorStop(1, `rgba(60,0,0,0)`);
+          ctx.fillStyle = tGrad;
+          ctx.fillRect(headX + eOff * G - 0.8, headY, 1.6, tearLen);
+        }
+
+        // Blood pooling around base
+        if (s.tearY > 0.5) {
+          const poolA = (s.tearY - 0.5) * 0.3;
+          const poolR = G * (0.5 + s.tearY * 0.3);
+          const pGrad = ctx.createRadialGradient(sx2, sy2 + r, 0, sx2, sy2 + r, poolR);
+          pGrad.addColorStop(0, `rgba(80,0,0,${poolA})`);
+          pGrad.addColorStop(1, 'rgba(40,0,0,0)');
+          ctx.fillStyle = pGrad;
+          ctx.beginPath(); ctx.arc(sx2, sy2 + r, poolR, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+  }
+
+  // --- Flame drawing helper ---
+  function drawFlame(ctx, x, y, size, now, seed) {
+    const layers = 5;
+    for (let i = layers - 1; i >= 0; i--) {
+      const t = i / layers;
+      const flicker = Math.sin(now * 0.012 + seed * 7 + i * 1.3) * 0.3
+                    + Math.sin(now * 0.019 + seed * 3.7 + i * 2.1) * 0.2;
+      const w = size * (0.6 + t * 0.4) * (0.8 + flicker * 0.3);
+      const h = size * (1.0 + t * 1.2) * (0.9 + flicker * 0.2);
+      const yOff = -h * 0.4 * t;
+      const hue = 30 + t * 30 - 20; // yellow core → orange → red tip
+      const lum = 80 - t * 45;
+      const alpha = (1 - t * 0.5) * (0.7 + flicker * 0.15);
+      ctx.fillStyle = `hsla(${hue},100%,${lum}%,${alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y + yOff, w * 0.5, h * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Bright white-yellow core
+    ctx.fillStyle = `rgba(255,255,200,0.6)`;
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawGlyph(ctx, G, now) {
+    if (glyphGrowth < 0.015) return;
+    const cx = Math.floor(cols/2)*G + G/2;
+    const cy = Math.floor(rows/2)*G + G/2;
+    const maxR = Math.min(cols,rows)*G*0.22;
+    const r = maxR * glyphGrowth;
+    const a = Math.min(glyphGrowth * 1.5, 0.75);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(glyphAngle);
+
+    // --- Glow underneath (drawn first, behind everything) ---
+    ctx.globalAlpha = a * 0.25;
+    const glG = ctx.createRadialGradient(0, 0, 0, 0, 0, r*1.5);
+    glG.addColorStop(0, 'rgba(200,50,0,0.35)');
+    glG.addColorStop(0.5, 'rgba(140,20,0,0.15)');
+    glG.addColorStop(1, 'rgba(80,0,0,0)');
+    ctx.fillStyle = glG;
+    ctx.beginPath(); ctx.arc(0, 0, r*1.5, 0, Math.PI*2); ctx.fill();
+
+    ctx.globalAlpha = a;
+
+    // --- Outer circle with ember glow ---
+    const circleHue = 355 + Math.sin(now*0.002)*5;
+    ctx.strokeStyle = `hsl(${circleHue},75%,${26+corruption*20}%)`;
+    ctx.lineWidth = 1.5 + corruption * 2;
+    ctx.shadowColor = `rgba(255,60,0,${corruption*0.5})`;
+    ctx.shadowBlur = 6 + corruption * 10;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Inner circle (appears at ~20%)
+    if (glyphGrowth > 0.15) {
+      const iA = Math.min((glyphGrowth-0.15)/0.15, 1);
+      ctx.globalAlpha = a * iA;
+      ctx.strokeStyle = `hsl(${circleHue},70%,${22+corruption*15}%)`;
+      ctx.lineWidth = 1 + corruption * 1.2;
+      ctx.beginPath(); ctx.arc(0, 0, r*0.6, 0, Math.PI*2); ctx.stroke();
+    }
+
+    // --- Pentagram with fire tracing ---
+    if (glyphGrowth > 0.08) {
+      ctx.globalAlpha = a;
+      const progress = Math.min((glyphGrowth - 0.08) / 0.7, 1);
+      const isComplete = progress >= 0.999;
+
+      // 5 vertices: inverted pentagram (bottom point)
+      const verts = [];
+      for (let i = 0; i < 5; i++) {
+        const angle = (i * 2 * Math.PI / 5) + Math.PI / 2;
+        verts.push({ x: Math.cos(angle) * r * 0.85, y: Math.sin(angle) * r * 0.85 });
+      }
+      // Star order: 0→2→4→1→3→0
+      const order = [0, 2, 4, 1, 3, 0];
+      const totalLines = 5;
+      const drawnLines = progress * totalLines;
+
+      // Draw the star lines with glowing stroke
+      ctx.strokeStyle = `hsl(${10+corruption*8},90%,${30+corruption*18}%)`;
+      ctx.lineWidth = 1.5 + corruption * 1.5;
+      ctx.shadowColor = `rgba(255,80,0,${0.3+corruption*0.4})`;
+      ctx.shadowBlur = 4 + corruption * 8;
+      ctx.beginPath();
+      for (let i = 0; i < totalLines; i++) {
+        if (i >= drawnLines) break;
+        const from = verts[order[i]];
+        const to = verts[order[i + 1]];
+        const lp = i < Math.floor(drawnLines) ? 1 : (drawnLines - Math.floor(drawnLines));
+        const endX = from.x + (to.x - from.x) * lp;
+        const endY = from.y + (to.y - from.y) * lp;
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(endX, endY);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // --- Fire at the tracing tip (leading edge) ---
+      if (!isComplete) {
+        const currentLine = Math.floor(drawnLines);
+        if (currentLine < totalLines) {
+          const from = verts[order[currentLine]];
+          const to = verts[order[currentLine + 1]];
+          const lp = drawnLines - currentLine;
+          const tipX = from.x + (to.x - from.x) * lp;
+          const tipY = from.y + (to.y - from.y) * lp;
+          // The tracing flame — bigger and brighter
+          const tipSize = G * (0.4 + corruption * 0.3) + Math.sin(now*0.015)*G*0.08;
+          // Unrotate the flame so it always points up visually
+          ctx.save();
+          ctx.translate(tipX, tipY);
+          ctx.rotate(-glyphAngle); // counter-rotate so flames point up in screen space
+          drawFlame(ctx, 0, 0, tipSize, now, 99);
+          ctx.restore();
+        }
+      }
+
+      // --- Flames at completed vertices ---
+      // A vertex is "reached" when a line ends at it.
+      // order: 0→2→4→1→3→0
+      // After line 0 completes (0→2), vertex 2 is reached
+      // After line 1 completes (2→4), vertex 4 is reached
+      // After line 2 completes (4→1), vertex 1 is reached
+      // After line 3 completes (1→3), vertex 3 is reached
+      // After line 4 completes (3→0), vertex 0 is reached (all 5)
+      const reachedVerts = [];
+      const completedLines = Math.floor(drawnLines);
+      // Destination vertex indices in order of completion
+      const destOrder = [2, 4, 1, 3, 0];
+      for (let i = 0; i < Math.min(completedLines, 5); i++) {
+        const vIdx = destOrder[i];
+        const age = (completedLines - i - 1) / 5 + (drawnLines - completedLines) / 5;
+        reachedVerts.push({ idx: vIdx, age: Math.min(age, 1) });
+      }
+
+      // Draw vertex flames
+      for (const rv of reachedVerts) {
+        const v = verts[rv.idx];
+        const flameSize = G * (0.25 + rv.age * 0.2 + corruption * 0.15);
+        // Unrotate flames so they point up in screen space
+        ctx.save();
+        ctx.translate(v.x, v.y);
+        ctx.rotate(-glyphAngle);
+        drawFlame(ctx, 0, 0, flameSize, now, rv.idx);
+        ctx.restore();
+      }
+    }
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawLightning(ctx, W, H) {
+    if (lightningAlpha <= 0) return;
+    ctx.fillStyle = `rgba(200,190,160,${lightningAlpha*0.12})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // --- Corruption-driven vignette ---
+  function drawVignette(ctx, W, H, now) {
+    if (corruption < 0.15) return;
+    const c = corruption;
+    const pulse = Math.sin(now * 0.002) * 0.015;
+    const edgeAlpha = (c - 0.15) * 0.35 + pulse;
+
+    // Red vignette from edges
+    const grad = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.3, W/2, H/2, Math.max(W,H)*0.7);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, `rgba(60,0,0,${edgeAlpha})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // --- Snake appearance: 3 phases based on candles eaten ---
+  // Phase 1 (0-5):  Green natural snake
+  // Phase 2 (6-12): Burning transition — green darkens to orange/red, fire intensifies
+  // Phase 3 (13+):  Demon — dark crimson, horns, glowing eyes
+  function setCandlesEaten(n) { candlesEaten = n; }
+
+  function getSnakeStyle() {
+    const c = corruption;
+    const ce = candlesEaten;
+
+    if (ce <= 5) {
+      // Phase 1: Natural green snake
+      const t1 = ce / 5; // 0→1 within phase
+      return {
+        headColor: `hsl(${115-t1*10},${70+t1*10}%,${38-t1*5}%)`,
+        bodyFn: (t) => {
+          const hue = 120 - t * 15 - t1 * 10;
+          const sat = 55 + t1 * 10;
+          const lum = 32 - t * 8;
+          return `hsl(${hue},${sat}%,${lum}%)`;
+        },
+        eyeColor: '#1a1a0a',
+        eyeGlow: false,
+        flameHue: 120, // green-ish (barely visible, tail flame is subtle)
+        showTailFlame: false,
+        phase: 1,
+      };
+    } else if (ce <= 12) {
+      // Phase 2: Burning transition
+      const t2 = (ce - 6) / 6; // 0→1 within phase
+      return {
+        headColor: `hsl(${100-t2*80},${75+t2*15}%,${35-t2*8}%)`,
+        bodyFn: (t) => {
+          const hue = (110 - t2 * 85) - t * 15;
+          const sat = 60 + t2 * 25;
+          const lum = 36 - t * 7 - t2 * 4;
+          return `hsl(${hue},${sat}%,${Math.max(lum, 20)}%)`;
+        },
+        eyeColor: `hsl(${40-t2*35},100%,${55+Math.sin(performance.now()*0.008)*8}%)`,
+        eyeGlow: t2 > 0.3,
+        flameHue: 60 - t2 * 40, // yellow → orange
+        showTailFlame: true,
+        phase: 2,
+      };
+    } else {
+      // Phase 3: Demon snake
+      return {
+        headColor: `hsl(${5-c*3},${88+c*8}%,${32-c*6}%)`,
+        bodyFn: (t) => {
+          const hue = 8 - t * 5 - c * 5;
+          const sat = 85 + c * 10;
+          const lum = 35 - t * 8 - c * 4; // floor: 35-8-4=23% at worst
+          return `hsl(${hue},${sat}%,${Math.max(lum, 18)}%)`;
+        },
+        eyeColor: `hsl(0,100%,${55+Math.sin(performance.now()*0.01)*12}%)`,
+        eyeGlow: true,
+        flameHue: 15 - c * 15,
+        showTailFlame: true,
+        phase: 3,
+      };
+    }
+  }
+
+  function drawDemonHead(ctx, px, py, G, dir, now) {
+    // Horns only in phase 2+ (partial in phase 2, full in phase 3)
+    if (candlesEaten < 8) return;
+    const hornProgress = candlesEaten <= 12
+      ? (candlesEaten - 8) / 4  // 0→1 during late phase 2
+      : 1;
+    const hornAlpha = Math.min(hornProgress, 1);
+    const cx2 = px+G/2, cy2 = py+G/2;
+    ctx.strokeStyle = `rgba(74,0,0,${hornAlpha})`;
+    ctx.lineWidth = 1.5 + corruption * 1.5;
+    ctx.lineCap = 'round';
+    const pX=-dir.y, pY=dir.x, bX=-dir.x, bY=-dir.y;
+    const hL = G * (0.15 + hornProgress * 0.35);
+    for (const s of [-1, 1]) {
+      const baseX = cx2+pX*s*G*0.28+bX*G*0.12;
+      const baseY = cy2+pY*s*G*0.28+bY*G*0.12;
+      const tipX = baseX+pX*s*hL*0.7+bX*hL;
+      const tipY = baseY+pY*s*hL*0.7+bY*hL;
+      ctx.beginPath();
+      ctx.moveTo(baseX, baseY);
+      ctx.quadraticCurveTo(baseX+pX*s*hL, baseY+pY*s*hL, tipX, tipY);
+      ctx.stroke();
+    }
+  }
+
+  function reset() {
+    corruption = 0; glyphGrowth = 0; glyphAngle = 0;
+    bloodPools = []; tileCorr = {}; candlesEaten = 0;
+    cracks = [];
+    for (const s of statues) { s.crying = false; s.tearY = 0; s.bloodSpawned = false; }
+  }
+
+  return {
+    generate, getPewGrid, rebuildPewGrid,
+    tryBurnPewsNear, getBurningPews,
+    setCorruption, getCorruption, addTileCorr, spawnBlood,
+    setCandlesEaten, addCrack,
+    getSnakeStyle, drawDemonHead,
+    update,
+    drawTiles, drawBlood, drawCracks, drawAltar, drawPews, drawStatues,
+    drawStainedGlass, drawGlyph, drawLightning, drawVignette,
+    reset,
+    get corruption() { return corruption; },
+    get cols() { return cols; },
+    get rows() { return rows; },
+    get lightningAlpha() { return lightningAlpha; },
+    get statues() { return statues; },
+    get pews() { return pews; },
+  };
+})();
+
+// =========================================
+// MAIN GAME ENGINE
+// =========================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+if (!ctx.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,radii) {
+    let r = typeof radii==='number'?radii:(Array.isArray(radii)?radii[0]:0);
+    r = Math.min(r, w/2, h/2);
+    this.moveTo(x+r,y); this.lineTo(x+w-r,y); this.arcTo(x+w,y,x+w,y+r,r);
+    this.lineTo(x+w,y+h-r); this.arcTo(x+w,y+h,x+w-r,y+h,r);
+    this.lineTo(x+r,y+h); this.arcTo(x,y+h,x,y+h-r,r);
+    this.lineTo(x,y+r); this.arcTo(x,y,x+r,y,r); this.closePath();
+  };
+}
+
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if (isTouch) document.body.classList.add('is-touch');
+
+const DESKTOP_GRID = 20, MOBILE_GRID = 16;
+let GRID = isTouch ? MOBILE_GRID : DESKTOP_GRID;
+let COLS, ROWS, W, H;
+
+function resize() {
+  GRID = isTouch ? MOBILE_GRID : DESKTOP_GRID;
+  const pad=20, topR=70, botR=isTouch?160:10;
+  const wW=Math.max(window.innerWidth,300), wH=Math.max(window.innerHeight,300);
+  COLS = Math.max(Math.floor(Math.min(wW-pad,560)/GRID),12);
+  ROWS = Math.max(Math.floor(Math.min(wH-topR-botR,480)/GRID),12);
+  W = COLS*GRID; H = ROWS*GRID;
+  canvas.width = W; canvas.height = H;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- State ---
+let snake, dir, nextDir, score, alive, gameStarted;
+let candles = [], particles = [];
+let wallpaperMode = false;
+let totalCandlesEaten = 0;
+let gameTime = 0; // seconds since game start
+
+let burnTimer, moveTimer, candleSpawnTimer;
+const MOVE_INTERVAL = 110;
+const BURN_INTERVAL = 1800;
+const CANDLE_SPAWN_INTERVAL = 3000;
+const INITIAL_LENGTH = 8;
+const MAX_CANDLES = 12;
+const CANDLE_LIFETIME = 14000;
+
+function init() {
+  resize();
+  Church.generate(COLS, ROWS);
+  const sx = Math.floor(COLS/2), sy = Math.floor(ROWS/2);
+  snake = [];
+  for (let i = 0; i < INITIAL_LENGTH; i++) snake.push({x:sx-i, y:sy});
+  dir = {x:1,y:0}; nextDir = {x:1,y:0};
+  candles = []; particles = [];
+  score = 0; alive = true; gameStarted = true;
+  totalCandlesEaten = 0; gameTime = 0;
+  burnTimer = 0; moveTimer = 0; candleSpawnTimer = 0;
+  spawnInitialCandles();
+  updateHUD();
+}
+
+// Place ~10 candles spread around church - aisles, beyond pews, near altar
+function spawnInitialCandles() {
+  const pewGrid = Church.getPewGrid();
+  const aisleX = Math.floor(COLS / 2);
+  const positions = [];
+
+  for (const p of Church.pews) {
+    if (p.dead) continue;
+    // Wall side of pews (between pew and wall)
+    const wallL = 1;
+    if (!pewGrid[p.y * COLS + wallL]) positions.push({ x: wallL, y: p.y, zone: 'wall' });
+    const wallR = COLS - 2;
+    if (!pewGrid[p.y * COLS + wallR]) positions.push({ x: wallR, y: p.y, zone: 'wall' });
+    // Center aisle
+    if (!pewGrid[p.y * COLS + aisleX]) positions.push({ x: aisleX, y: p.y, zone: 'aisle' });
+    // One tile offset from center
+    if (aisleX+1 < COLS && !pewGrid[p.y * COLS + aisleX+1]) positions.push({ x: aisleX+1, y: p.y, zone: 'aisle' });
+  }
+
+  // Near altar (rows 4-6, spread across width)
+  for (let y = 4; y <= 6; y++) {
+    for (let x = 2; x < COLS - 2; x += 3) {
+      if (y < ROWS && !pewGrid[y * COLS + x]) positions.push({ x, y, zone: 'altar' });
+    }
+  }
+
+  // Back of church (last 2 rows)
+  for (let x = 2; x < COLS - 2; x += 4) {
+    const y = ROWS - 2;
+    if (y >= 0 && !pewGrid[y * COLS + x]) positions.push({ x, y, zone: 'back' });
+  }
+
+  // Shuffle
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+
+  // Pick ~10, ensuring variety across zones
+  const placed = new Set();
+  const zoneCounts = { wall: 0, aisle: 0, altar: 0, back: 0 };
+  const zoneMax = { wall: 3, aisle: 3, altar: 3, back: 2 };
+  const target = Math.min(10, positions.length);
+
+  for (const pos of positions) {
+    if (candles.length >= target) break;
+    const key = pos.x + ',' + pos.y;
+    if (placed.has(key)) continue;
+    if (zoneCounts[pos.zone] >= zoneMax[pos.zone]) continue;
+    if (snake.some(s => s.x === pos.x && s.y === pos.y)) continue;
+    placed.add(key);
+    zoneCounts[pos.zone]++;
+    candles.push({
+      x: pos.x, y: pos.y,
+      birth: performance.now(),
+      height: 0.7 + Math.random() * 0.3,
+      flicker: Math.random() * Math.PI * 2,
+      hue: 25 + Math.random() * 20,
+      type: 'candle',
+    });
+  }
+}
+
+function spawnCandle() {
+  if (candles.length >= MAX_CANDLES) return;
+  const pewGrid = Church.getPewGrid();
+  const isHellfire = totalCandlesEaten >= 6;
+  let attempts = 0;
+  while (attempts < 200) {
+    const x = 1+Math.floor(Math.random()*(COLS-2));
+    const y = 1+Math.floor(Math.random()*(ROWS-2));
+    const onSnake = snake.some(s => s.x===x && s.y===y);
+    const onCandle = candles.some(c => c.x===x && c.y===y);
+    const onPew = pewGrid[y*COLS+x] === 1;
+    if (!onSnake && !onCandle && !onPew) {
+      if (isHellfire) {
+        // Hellfire: appears from cracks in the floor
+        Church.addCrack(x, y);
+        Church.tryBurnPewsNear(x, y);
+        candles.push({
+          x, y,
+          birth: performance.now(),
+          height: 0.5 + Math.random() * 0.5,
+          flicker: Math.random() * Math.PI * 2,
+          hue: 5 + Math.random() * 15,
+          type: 'hellfire',
+        });
+      } else {
+        // Regular candle (only in early game)
+        Church.tryBurnPewsNear(x, y);
+        candles.push({
+          x, y,
+          birth: performance.now(),
+          height: 0.7 + Math.random() * 0.3,
+          flicker: Math.random() * Math.PI * 2,
+          hue: 25 + Math.random() * 20,
+          type: 'candle',
+        });
+      }
+      return;
+    }
+    attempts++;
+  }
+}
+
+// --- Input ---
+function setDir(dx, dy) {
+  if (wallpaperMode) return;
+  if (dx===-dir.x && dy===-dir.y) return;
+  if (dx===0 && dy===0) return;
+  nextDir = {x:dx, y:dy};
+}
+
+window.addEventListener('keydown', e => {
+  switch(e.key) {
+    case 'ArrowUp': case 'w': case 'W': e.preventDefault(); setDir(0,-1); break;
+    case 'ArrowDown': case 's': case 'S': e.preventDefault(); setDir(0,1); break;
+    case 'ArrowLeft': case 'a': case 'A': e.preventDefault(); setDir(-1,0); break;
+    case 'ArrowRight': case 'd': case 'D': e.preventDefault(); setDir(1,0); break;
+  }
+});
+
+let touchSX=0, touchSY=0;
+canvas.addEventListener('touchstart', e => { e.preventDefault(); touchSX=e.touches[0].clientX; touchSY=e.touches[0].clientY; }, {passive:false});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t=e.touches[0], dx=t.clientX-touchSX, dy=t.clientY-touchSY;
+  if (Math.sqrt(dx*dx+dy*dy) >= 20) {
+    if (Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1, 0); else setDir(0, dy>0?1:-1);
+    touchSX=t.clientX; touchSY=t.clientY;
+  }
+}, {passive:false});
+canvas.addEventListener('touchend', e => e.preventDefault(), {passive:false});
+document.addEventListener('touchmove', e => { if(e.target.tagName!=='BUTTON') e.preventDefault(); }, {passive:false});
+
+// =========================================
+// AI AUTOPILOT
+// =========================================
+const DIRS = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+
+function makeGrid() {
+  const g = new Uint8Array(COLS*ROWS);
+  const pg = Church.getPewGrid();
+  for (let i = 0; i < g.length; i++) if (pg[i]) g[i] = 1;
+  for (let i = 0; i < snake.length; i++) g[snake[i].y*COLS+snake[i].x] = 1;
+  return g;
+}
+
+function bfs(sx, sy, grid, targets, exDir) {
+  const vis = new Uint8Array(COLS*ROWS);
+  const q = [];
+  vis[sy*COLS+sx] = 1;
+  for (let d = 0; d < 4; d++) {
+    if (d === exDir) continue;
+    const nx=sx+DIRS[d].x, ny=sy+DIRS[d].y;
+    if (nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+    const k=ny*COLS+nx;
+    if (grid[k]||vis[k]) continue;
+    vis[k]=1; q.push([nx,ny,d,1]);
+  }
+  const res = new Map();
+  let qi = 0;
+  while (qi < q.length) {
+    const [cx,cy,fd,dist] = q[qi++];
+    for (const t of targets) {
+      if (t.x===cx && t.y===cy && !res.has(t.id)) res.set(t.id, {dist,dirIdx:fd});
+    }
+    if (res.size === targets.length) break;
+    for (let d = 0; d < 4; d++) {
+      const nx=cx+DIRS[d].x, ny=cy+DIRS[d].y;
+      if (nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+      const k=ny*COLS+nx;
+      if (grid[k]||vis[k]) continue;
+      vis[k]=1; q.push([nx,ny,fd,dist+1]);
+    }
+  }
+  return res;
+}
+
+function canReachTail(hx, hy, body) {
+  const g = new Uint8Array(COLS*ROWS);
+  const pg = Church.getPewGrid();
+  for (let i = 0; i < g.length; i++) if (pg[i]) g[i]=1;
+  for (const s of body) g[s.y*COLS+s.x]=1;
+  g[hy*COLS+hx]=0;
+  const tail = body[body.length-1];
+  const tgts = [];
+  for (const d of DIRS) {
+    const tx=tail.x+d.x, ty=tail.y+d.y;
+    if (tx>=0&&tx<COLS&&ty>=0&&ty<ROWS) tgts.push({x:tx,y:ty,id:'t'+tgts.length});
+  }
+  return bfs(hx, hy, g, tgts).size > 0;
+}
+
+function floodSize(sx, sy, grid) {
+  if (grid[sy*COLS+sx]) return 0;
+  const vis = new Uint8Array(COLS*ROWS);
+  vis[sy*COLS+sx]=1;
+  const st = [[sx,sy]]; let c = 0;
+  while (st.length) {
+    const [x,y]=st.pop(); c++;
+    for (const d of DIRS) {
+      const nx=x+d.x, ny=y+d.y;
+      if (nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+      const k=ny*COLS+nx;
+      if (grid[k]||vis[k]) continue;
+      vis[k]=1; st.push([nx,ny]);
+    }
+  }
+  return c;
+}
+
+function aiDecide() {
+  if (!alive || !snake || snake.length === 0) return;
+  const head = snake[0];
+  const grid = makeGrid();
+  const now = performance.now();
+  const cTargets = candles.map((c,i)=>{
+    const lr = 1-Math.min((now-c.birth)/CANDLE_LIFETIME, 1);
+    return {x:c.x, y:c.y, id:i, lr};
+  }).filter(c=>c.lr>0.05);
+  const sg = new Uint8Array(grid);
+  sg[head.y*COLS+head.x] = 0;
+  const rev = DIRS.findIndex(d=>d.x===-dir.x&&d.y===-dir.y);
+  const paths = bfs(head.x, head.y, sg, cTargets, rev);
+  let cands = [];
+  for (const ct of cTargets) {
+    const p = paths.get(ct.id);
+    if (!p) continue;
+    const urg = (1-ct.lr)*2;
+    cands.push({...ct, dist:p.dist, dirIdx:p.dirIdx, score:urg+1/(p.dist+1)});
+  }
+  cands.sort((a,b)=>b.score-a.score);
+  for (const c of cands) {
+    const d = DIRS[c.dirIdx];
+    if (canReachTail(head.x+d.x, head.y+d.y, snake)) { nextDir={...d}; return; }
+  }
+  if (snake.length <= 4 && cands.length > 0) { nextDir={...DIRS[cands[0].dirIdx]}; return; }
+  const tail = snake[snake.length-1];
+  const tTgts = [];
+  for (let d=0;d<4;d++) {
+    const tx=tail.x+DIRS[d].x, ty=tail.y+DIRS[d].y;
+    if (tx>=0&&tx<COLS&&ty>=0&&ty<ROWS) tTgts.push({x:tx,y:ty,id:'tn'+d});
+  }
+  const tP = bfs(head.x, head.y, sg, tTgts, rev);
+  let best = null;
+  for (const [,tp] of tP) { if (!best||tp.dist<best.dist) best=tp; }
+  if (best) { nextDir={...DIRS[best.dirIdx]}; return; }
+  let bestD=null, bestS=-1;
+  for (let d=0;d<4;d++) {
+    if (d===rev) continue;
+    const nx=head.x+DIRS[d].x, ny=head.y+DIRS[d].y;
+    if (nx<0||nx>=COLS||ny<0||ny>=ROWS||grid[ny*COLS+nx]) continue;
+    const s = floodSize(nx, ny, sg);
+    if (s > bestS) { bestS=s; bestD=d; }
+  }
+  if (bestD !== null) nextDir={...DIRS[bestD]};
+}
+
+// =========================================
+// PARTICLES
+// =========================================
+function emitFlame(px, py, count, hue, spread) {
+  for (let i=0; i<count; i++) particles.push({
+    x:px+(Math.random()-0.5)*spread, y:py+(Math.random()-0.5)*spread,
+    vx:(Math.random()-0.5)*1.5, vy:-1-Math.random()*2.5,
+    life:0.5+Math.random()*0.6, maxLife:0.5+Math.random()*0.6,
+    size:2+Math.random()*4, hue:hue+(Math.random()-0.5)*20,
+  });
+}
+function emitDeath(px, py) {
+  for (let i=0;i<40;i++) {
+    const a=Math.random()*Math.PI*2, spd=1+Math.random()*4;
+    particles.push({x:px,y:py,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,
+      life:0.8+Math.random()*0.8,maxLife:0.8+Math.random()*0.8,
+      size:3+Math.random()*6,hue:10+Math.random()*40});
+  }
+}
+function emitCandleOut(cx, cy) {
+  for (let i=0;i<15;i++) particles.push({
+    x:cx,y:cy,vx:(Math.random()-0.5)*2,vy:-1.5-Math.random()*2,
+    life:0.4+Math.random()*0.5,maxLife:0.4+Math.random()*0.5,
+    size:1.5+Math.random()*2.5,hue:0,smoke:true});
+}
+function updateParticles(dt) {
+  for (let i=particles.length-1;i>=0;i--) {
+    const p=particles[i];
+    p.x+=p.vx*dt*60; p.y+=p.vy*dt*60; p.vy-=0.03*dt*60;
+    p.life-=dt;
+    if (p.life<=0) particles.splice(i,1);
+  }
+}
+function drawParticles() {
+  for (const p of particles) {
+    const t=p.life/p.maxLife, alpha=t*0.9, size=p.size*(0.5+t*0.5);
+    if (p.smoke) { ctx.fillStyle=`rgba(120,110,100,${alpha*0.4})`; }
+    else {
+      ctx.fillStyle=`hsla(${p.hue},100%,${50+t*40}%,${alpha})`;
+      ctx.shadowColor=`hsla(${p.hue},100%,60%,${alpha*0.5})`; ctx.shadowBlur=8;
+    }
+    ctx.beginPath(); ctx.arc(p.x, p.y, size, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+  }
+}
+
+// =========================================
+// DRAWING
+// =========================================
+function drawCandle(c, now) {
+  const age = now-c.birth;
+  const lr = 1-Math.min(age/CANDLE_LIFETIME, 1);
+  if (lr<=0) return;
+  const cx2=c.x*GRID+GRID/2, baseY=c.y*GRID+GRID;
+  const cH=GRID*1.2*c.height*lr, cW=GRID*0.35, topY=baseY-cH;
+
+  const wG=ctx.createLinearGradient(cx2-cW,topY,cx2+cW,baseY);
+  wG.addColorStop(0,`hsl(${c.hue+15},25%,80%)`); wG.addColorStop(0.5,`hsl(${c.hue+10},20%,70%)`);
+  wG.addColorStop(1,`hsl(${c.hue+5},15%,60%)`);
+  ctx.fillStyle=wG; ctx.beginPath(); ctx.roundRect(cx2-cW,topY,cW*2,cH,[3,3,1,1]); ctx.fill();
+
+  for (let i=0;i<3;i++) {
+    const dx=Math.sin(c.flicker*1000+i*2.3)*cW*0.8;
+    ctx.fillStyle=`hsl(${c.hue+12},18%,73%)`;
+    ctx.beginPath();
+    ctx.ellipse(cx2+dx,topY+cH*(0.3+i*0.2),2,4+Math.abs(Math.sin(c.flicker*1000+i*1.7))*8*lr,0,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.strokeStyle='#1a0a00'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(cx2,topY); ctx.lineTo(cx2,topY-5); ctx.stroke();
+
+  const flick=Math.sin(now*0.012+c.flicker)*2+Math.sin(now*0.023+c.flicker*2);
+  const fH=(8+Math.sin(now*0.008+c.flicker)*3)*Math.min(lr*3,1);
+  const fCx=cx2+flick*0.5, fCy=topY-5;
+
+  const gR=20+Math.sin(now*0.01+c.flicker)*5;
+  const glow=ctx.createRadialGradient(fCx,fCy-fH*0.4,0,fCx,fCy-fH*0.4,gR);
+  glow.addColorStop(0,`hsla(40,100%,70%,${0.15*lr})`); glow.addColorStop(1,'hsla(40,100%,50%,0)');
+  ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(fCx,fCy-fH*0.4,gR,0,Math.PI*2); ctx.fill();
+
+  const fG=ctx.createLinearGradient(fCx,fCy,fCx,fCy-fH);
+  fG.addColorStop(0,'hsla(30,100%,50%,0.95)'); fG.addColorStop(0.3,'hsla(45,100%,60%,0.9)');
+  fG.addColorStop(0.7,'hsla(50,100%,80%,0.7)'); fG.addColorStop(1,'hsla(55,100%,95%,0.3)');
+  ctx.fillStyle=fG; ctx.beginPath();
+  ctx.moveTo(fCx,fCy);
+  ctx.bezierCurveTo(fCx-5,fCy-fH*0.3,fCx-4+flick*0.3,fCy-fH*0.8,fCx+flick*0.4,fCy-fH);
+  ctx.bezierCurveTo(fCx+4+flick*0.3,fCy-fH*0.8,fCx+5,fCy-fH*0.3,fCx,fCy);
+  ctx.fill();
+
+  ctx.fillStyle=`hsla(55,100%,95%,${0.5*lr})`;
+  ctx.beginPath(); ctx.ellipse(fCx,fCy-fH*0.25,2,fH*0.25,0,0,Math.PI*2); ctx.fill();
+
+  if (Math.random()<0.15*lr) emitFlame(fCx,fCy-fH*0.5,1,c.hue+20,4);
+  if (lr<0.25) {
+    const u=1-lr/0.25;
+    if (Math.random()<u*0.3) {
+      ctx.fillStyle=`rgba(255,50,0,${0.1+u*0.15})`;
+      ctx.beginPath(); ctx.arc(cx2,c.y*GRID+GRID/2,GRID*0.8,0,Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+function drawHellfire(c, now) {
+  const age = now - c.birth;
+  const lr = 1 - Math.min(age / CANDLE_LIFETIME, 1);
+  if (lr <= 0) return;
+  const cx2 = c.x * GRID + GRID / 2, cy2 = c.y * GRID + GRID / 2;
+
+  // Glowing crack center
+  const crackGlow = 0.3 + lr * 0.4 + Math.sin(now * 0.006 + c.flicker) * 0.1;
+  const gR = GRID * (0.6 + lr * 0.3);
+  const gGrad = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, gR);
+  gGrad.addColorStop(0, `rgba(255,60,0,${crackGlow * 0.5})`);
+  gGrad.addColorStop(0.5, `rgba(200,20,0,${crackGlow * 0.2})`);
+  gGrad.addColorStop(1, 'rgba(100,0,0,0)');
+  ctx.fillStyle = gGrad;
+  ctx.beginPath(); ctx.arc(cx2, cy2, gR, 0, Math.PI * 2); ctx.fill();
+
+  // Hellfire flames
+  const flames = 3 + Math.floor(lr * 3);
+  for (let i = 0; i < flames; i++) {
+    const angle = (i / flames) * Math.PI * 2 + Math.sin(now * 0.008 + i) * 0.5;
+    const dist = GRID * 0.1 + Math.sin(now * 0.01 + i * 2.3) * GRID * 0.08;
+    const fx = cx2 + Math.cos(angle) * dist;
+    const fy = cy2 + Math.sin(angle) * dist;
+    const fH = (GRID * 0.4 + Math.sin(now * 0.012 + c.flicker + i) * GRID * 0.15) * lr;
+    const fW = GRID * 0.15 * lr;
+    const hue = c.hue + Math.sin(now * 0.01 + i) * 10;
+    const fGrad = ctx.createLinearGradient(fx, fy, fx, fy - fH);
+    fGrad.addColorStop(0, `hsla(${hue},100%,50%,${0.85 * lr})`);
+    fGrad.addColorStop(0.4, `hsla(${hue + 20},100%,58%,${0.6 * lr})`);
+    fGrad.addColorStop(1, `hsla(${hue + 35},100%,75%,0)`);
+    ctx.fillStyle = fGrad;
+    const flick = Math.sin(now * 0.015 + i * 1.7) * fW * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(fx - fW, fy);
+    ctx.bezierCurveTo(fx - fW * 0.5, fy - fH * 0.4, fx + flick - fW * 0.3, fy - fH * 0.8, fx + flick, fy - fH);
+    ctx.bezierCurveTo(fx + flick + fW * 0.3, fy - fH * 0.8, fx + fW * 0.5, fy - fH * 0.4, fx + fW, fy);
+    ctx.fill();
+  }
+
+  // Bright core
+  ctx.fillStyle = `rgba(255,200,100,${0.3 * lr})`;
+  ctx.beginPath(); ctx.arc(cx2, cy2, GRID * 0.12, 0, Math.PI * 2); ctx.fill();
+
+  if (Math.random() < 0.2 * lr) emitFlame(cx2 + (Math.random()-0.5)*GRID*0.4, cy2 - GRID*0.2, 2, c.hue, 8);
+}
+
+function drawSnake(now) {
+  const len=snake.length;
+  const style = Church.getSnakeStyle();
+  for (let i=len-1;i>=0;i--) {
+    const s=snake[i], px=s.x*GRID, py=s.y*GRID;
+    const t=i/len;
+    if (i===0) {
+      ctx.fillStyle = style.headColor;
+      ctx.beginPath(); ctx.roundRect(px+1,py+1,GRID-2,GRID-2,5); ctx.fill();
+    } else {
+      ctx.fillStyle = style.bodyFn(t);
+      ctx.beginPath(); ctx.roundRect(px+1.5,py+1.5,GRID-3,GRID-3,3); ctx.fill();
+    }
+    if (i===0) {
+      const eS=3;
+      const eOX=dir.x===0?5:(dir.x>0?12:5), eOY=dir.y===0?5:(dir.y>0?12:5);
+      const eOX2=dir.x===0?12:eOX, eOY2=dir.y===0?12:eOY;
+      if (style.eyeGlow) { ctx.shadowColor='rgba(255,0,0,0.6)'; ctx.shadowBlur=8; }
+      ctx.fillStyle=style.eyeColor;
+      ctx.beginPath(); ctx.arc(px+eOX,py+eOY,eS,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px+eOX2,py+eOY2,eS,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle='#1a0a00';
+      ctx.beginPath(); ctx.arc(px+eOX+dir.x,py+eOY+dir.y,1.5,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px+eOX2+dir.x,py+eOY2+dir.y,1.5,0,Math.PI*2); ctx.fill();
+      Church.drawDemonHead(ctx, px, py, GRID, dir, now);
+    }
+  }
+
+  // Tail flame (only in burning/demon phases)
+  if (len > 0 && style.showTailFlame) {
+    const tail=snake[len-1], tx=tail.x*GRID+GRID/2, ty=tail.y*GRID+GRID/2;
+    let fdx=0, fdy=-1;
+    if (len>=2) { const p=snake[len-2]; fdx=tail.x-p.x; fdy=tail.y-p.y; if(fdx===0&&fdy===0){fdx=0;fdy=-1;} }
+    const fbx=tx+fdx*GRID*0.35, fby=ty+fdy*GRID*0.35;
+    const fl1=Math.sin(now*0.013)*3, fl2=Math.sin(now*0.021+1.5)*2, fl3=Math.cos(now*0.017+0.7)*1.5;
+    const br=1+Math.sin(now*0.006)*0.15;
+    const pX=-fdy, pY=fdx;
+    const fH=(14+Math.sin(now*0.009)*3)*br;
+    const gR=22*br;
+    const fHue = style.flameHue;
+    const gl=ctx.createRadialGradient(fbx,fby,0,fbx,fby,gR);
+    gl.addColorStop(0,`hsla(${fHue},100%,55%,0.25)`); gl.addColorStop(0.6,`hsla(${fHue},100%,45%,0.08)`);
+    gl.addColorStop(1,`hsla(${fHue},100%,40%,0)`);
+    ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(fbx,fby,gR,0,Math.PI*2); ctx.fill();
+
+    const tipX=fbx+fdx*fH+pX*fl1*0.4, tipY=fby+fdy*fH+pY*fl1*0.4;
+    const oG=ctx.createRadialGradient(fbx,fby,0,tipX,tipY,fH);
+    oG.addColorStop(0,`hsla(${fHue+5},100%,55%,0.95)`); oG.addColorStop(0.4,`hsla(${fHue-5},100%,50%,0.85)`);
+    oG.addColorStop(0.8,`hsla(${fHue-15},100%,45%,0.5)`); oG.addColorStop(1,`hsla(${fHue-20},100%,40%,0)`);
+    ctx.fillStyle=oG; ctx.beginPath();
+    ctx.moveTo(fbx+pX*5, fby+pY*5);
+    ctx.bezierCurveTo(fbx+fdx*fH*0.3+pX*(6+fl2),fby+fdy*fH*0.3+pY*(6+fl2),
+      fbx+fdx*fH*0.7+pX*(3+fl3),fby+fdy*fH*0.7+pY*(3+fl3),tipX,tipY);
+    ctx.bezierCurveTo(fbx+fdx*fH*0.7-pX*(3-fl3),fby+fdy*fH*0.7-pY*(3-fl3),
+      fbx+fdx*fH*0.3-pX*(6-fl2),fby+fdy*fH*0.3-pY*(6-fl2),fbx-pX*5,fby-pY*5);
+    ctx.fill();
+    // Core
+    const cH=fH*0.5, ctX=fbx+fdx*cH+pX*fl1*0.2, ctY=fby+fdy*cH+pY*fl1*0.2;
+    ctx.fillStyle='hsla(50,100%,90%,0.7)'; ctx.beginPath();
+    ctx.moveTo(fbx+pX*2.5,fby+pY*2.5);
+    ctx.bezierCurveTo(fbx+fdx*cH*0.4+pX*3,fby+fdy*cH*0.4+pY*3,fbx+fdx*cH*0.8+pX,fby+fdy*cH*0.8+pY,ctX,ctY);
+    ctx.bezierCurveTo(fbx+fdx*cH*0.8-pX,fby+fdy*cH*0.8-pY,fbx+fdx*cH*0.4-pX*3,fby+fdy*cH*0.4-pY*3,fbx-pX*2.5,fby-pY*2.5);
+    ctx.fill();
+    if (Math.random()<0.7) emitFlame(fbx+fdx*fH*0.4+(Math.random()-0.5)*8,fby+fdy*fH*0.4+(Math.random()-0.5)*8,2,fHue,6);
+    if (Math.random()<0.3) particles.push({x:tipX+(Math.random()-0.5)*4,y:tipY+(Math.random()-0.5)*4,
+      vx:fdx*(2+Math.random()*3)+(Math.random()-0.5)*2,vy:fdy*(2+Math.random()*3)+(Math.random()-0.5)*2,
+      life:0.3+Math.random()*0.4,maxLife:0.3+Math.random()*0.4,size:1.5+Math.random()*2,hue:fHue+10+Math.random()*15});
+  }
+}
+
+// =========================================
+// GAME LOGIC
+// =========================================
+function moveSnake() {
+  if (!alive) return;
+  dir = {...nextDir};
+  const head=snake[0], nx=head.x+dir.x, ny=head.y+dir.y;
+  const pewGrid = Church.getPewGrid();
+  if (nx<0||nx>=COLS||ny<0||ny>=ROWS) { die(); return; }
+  if (pewGrid[ny*COLS+nx]) { die(); return; }
+  if (snake.some((s,i)=>i>0&&s.x===nx&&s.y===ny)) { die(); return; }
+  snake.unshift({x:nx,y:ny});
+  Church.addTileCorr(nx, ny);
+
+  let ate = false;
+  for (let i=candles.length-1;i>=0;i--) {
+    if (candles[i].x===nx && candles[i].y===ny) {
+      const c=candles[i];
+      const lr=1-Math.min((performance.now()-c.birth)/CANDLE_LIFETIME,1);
+      score += 10+Math.floor(lr*100);
+      const segs = 2+Math.floor(lr*3);
+      for (let j=0;j<segs;j++) { const t=snake[snake.length-1]; snake.push({x:t.x,y:t.y}); }
+      emitFlame(c.x*GRID+GRID/2, c.y*GRID, 12, 45, 12);
+      candles.splice(i, 1);
+      ate = true;
+      totalCandlesEaten++;
+      Church.setCandlesEaten(totalCandlesEaten);
+      AudioEngine.playEat();
+      // Blood spawns occasionally after eating
+      if (Math.random() < 0.4) Church.spawnBlood(nx, ny);
+      break;
+    }
+  }
+  if (!ate) snake.pop();
+
+  // Corruption increases: based on candles eaten + time
+  const targetCorr = Math.min(totalCandlesEaten * 0.04 + gameTime * 0.002, 1);
+  const currentCorr = Church.getCorruption();
+  Church.setCorruption(currentCorr + (targetCorr - currentCorr) * 0.02);
+
+  updateHUD();
+}
+
+function burnTail() {
+  if (!alive || snake.length <= 1) return;
+  const tail = snake.pop();
+  emitFlame(tail.x*GRID+GRID/2, tail.y*GRID+GRID/2, 6, 15, 10);
+  AudioEngine.playBurn();
+  // Blood from burning
+  if (Math.random() < 0.15 && Church.getCorruption() > 0.4) Church.spawnBlood(tail.x, tail.y);
+  if (snake.length <= 1) die();
+  updateHUD();
+}
+
+function die() {
+  alive = false;
+  const head = snake[0];
+  emitDeath(head.x*GRID+GRID/2, head.y*GRID+GRID/2);
+  for (const s of snake) if (Math.random()<0.5) emitFlame(s.x*GRID+GRID/2,s.y*GRID+GRID/2,3,10,12);
+  // Death blood pool
+  Church.spawnBlood(head.x, head.y);
+  AudioEngine.playDeath();
+  setTimeout(showGameOver, 800);
+}
+
+function showGameOver() {
+  const ov = document.getElementById('overlay');
+  ov.classList.remove('hidden');
+  const c = Church.getCorruption();
+  document.getElementById('overlay-title').textContent = c > 0.7 ? 'Damnation' : c > 0.4 ? 'Consumed' : 'Extinguished';
+  document.getElementById('overlay-sub').textContent = c > 0.7
+    ? 'Even demons are not eternal.'
+    : c > 0.4 ? 'The flame claims all things.'
+    : 'Your light gutters and dies.';
+  const sl = document.getElementById('overlay-score');
+  sl.classList.remove('hidden');
+  sl.textContent = `Souls: ${totalCandlesEaten}  ·  Score: ${score}`;
+  document.getElementById('start-btn').textContent = 'Resurrect';
+}
+
+function updateCandles(now) {
+  for (let i=candles.length-1;i>=0;i--) {
+    if (now-candles[i].birth >= CANDLE_LIFETIME) {
+      const c=candles[i];
+      emitCandleOut(c.x*GRID+GRID/2, c.y*GRID);
+      AudioEngine.playCandleOut();
+      candles.splice(i, 1);
+    }
+  }
+}
+
+function updateHUD() {
+  document.getElementById('hud-segs').textContent = snake ? snake.length : 0;
+  document.getElementById('hud-candles').textContent = candles.length;
+  document.getElementById('hud-score').textContent = score || 0;
+}
+
+// =========================================
+// MAIN LOOP
+// =========================================
+let lastTime = 0;
+let burnAcc=0, moveAcc=0, spawnAcc=0;
+
+function gameLoop(ts) {
+  try {
+    if (!lastTime) lastTime = ts;
+    const dt = Math.min((ts-lastTime)/1000, 0.1);
+    lastTime = ts;
+
+    if (gameStarted && alive) {
+      gameTime += dt;
+      moveAcc += dt*1000; burnAcc += dt*1000; spawnAcc += dt*1000;
+      while (moveAcc >= MOVE_INTERVAL) {
+        if (wallpaperMode) aiDecide();
+        moveSnake();
+        moveAcc -= MOVE_INTERVAL;
+      }
+      while (burnAcc >= BURN_INTERVAL) { burnTail(); burnAcc -= BURN_INTERVAL; }
+      while (spawnAcc >= CANDLE_SPAWN_INTERVAL) { spawnCandle(); spawnAcc -= CANDLE_SPAWN_INTERVAL; updateHUD(); }
+      updateCandles(ts);
+
+      // Emit particles from burning pews
+      for (const p of Church.getBurningPews()) {
+        if (Math.random() < 0.25) {
+          const fx = (p.x + Math.random()*p.w)*GRID;
+          const fy = p.y*GRID;
+          emitFlame(fx, fy, 1, 20, GRID*0.5);
+        }
+      }
+    }
+
+    Church.update(dt, ts);
+    updateParticles(dt);
+
+    // --- DRAW ---
+    ctx.fillStyle = '#08060a';
+    ctx.fillRect(0, 0, W, H);
+    Church.drawTiles(ctx, GRID, ts);
+    Church.drawBlood(ctx, GRID, ts);
+    Church.drawCracks(ctx, GRID, ts);
+    Church.drawStainedGlass(ctx, GRID, ts);
+    Church.drawAltar(ctx, GRID, ts);
+    Church.drawPews(ctx, GRID, ts);
+    Church.drawStatues(ctx, GRID, ts);
+
+    if (gameStarted) {
+      for (const c of candles) {
+        if (c.type === 'hellfire') drawHellfire(c, ts);
+        else drawCandle(c, ts);
+      }
+      drawSnake(ts);
+    }
+
+    drawParticles();
+
+    // Glyph renders ABOVE everything - floating in the air
+    Church.drawGlyph(ctx, GRID, ts);
+
+    Church.drawLightning(ctx, W, H);
+    Church.drawVignette(ctx, W, H, ts);
+
+  } catch(err) {
+    ctx.fillStyle='#ff4444'; ctx.font='14px monospace';
+    ctx.fillText('ERR: '+err.message, 10, 30);
+    console.error(err);
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+// =========================================
+// SETUP
+// =========================================
+function startGame() {
+  resize();
+  wallpaperMode = document.getElementById('wallpaper-check').checked;
+  AudioEngine.init(); AudioEngine.resume();
+  // Enable sound on first play (user click satisfies autoplay policy)
+  const wantsSound = document.getElementById('sound-toggle').textContent !== '🔇off';
+  AudioEngine.setEnabled(true);
+  document.getElementById('sound-toggle').textContent = '🔊';
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('overlay-score').classList.add('hidden');
+  init();
+  lastTime=0; burnAcc=0; moveAcc=0; spawnAcc=0;
+}
+
+const startBtn = document.getElementById('start-btn');
+startBtn.addEventListener('click', startGame);
+startBtn.addEventListener('touchend', e => { e.preventDefault(); startGame(); });
+
+const dpadToggle = document.getElementById('dpad-toggle');
+const dpadCheck = document.getElementById('dpad-check');
+const wallpaperCheck = document.getElementById('wallpaper-check');
+if (isTouch) dpadToggle.classList.remove('hidden');
+dpadCheck.addEventListener('change', () => document.body.classList.toggle('show-dpad', dpadCheck.checked));
+wallpaperCheck.addEventListener('change', () => {
+  if (wallpaperCheck.checked) { dpadCheck.checked=false; document.body.classList.remove('show-dpad'); dpadToggle.classList.add('hidden'); }
+  else if (isTouch) dpadToggle.classList.remove('hidden');
+});
+
+const soundBtn = document.getElementById('sound-toggle');
+function toggleSound() { const on=AudioEngine.toggle(); soundBtn.textContent=on?'🔊':'🔇'; }
+soundBtn.addEventListener('click', toggleSound);
+soundBtn.addEventListener('touchend', e => { e.preventDefault(); toggleSound(); });
+
+requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>
