@@ -168,7 +168,13 @@ describe("World", () => {
   it("system receives world instance", () => {
     const w = new World();
     let received: World | null = null;
-    w.addSystem("test", (world) => { received = world; }, Phase.UPDATE);
+    w.addSystem(
+      "test",
+      (world) => {
+        received = world;
+      },
+      Phase.UPDATE,
+    );
     w.runPhase(Phase.UPDATE);
     expect(received).toBe(w);
   });

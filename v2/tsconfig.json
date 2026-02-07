@@ -15,7 +15,8 @@
       "@core/*": ["src/core/*"],
       "@systems/*": ["src/systems/*"],
       "@rendering/*": ["src/rendering/*"],
-      "@data/*": ["src/data/*"]
+      "@data/*": ["src/data/*"],
+      "@spawners/*": ["src/spawners/*"]
     },
     "types": ["vitest/globals"]
   },

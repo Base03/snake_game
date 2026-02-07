@@ -93,12 +93,7 @@ export class ParticlePool {
         ctx.globalAlpha = t * 0.9;
         ctx.fillStyle = `hsl(${this.hue[i]! | 0},100%,${(50 + t * 40) | 0}%)`;
       }
-      ctx.fillRect(
-        this.px[i]! - s * 0.5,
-        this.py[i]! - s * 0.5,
-        s,
-        s,
-      );
+      ctx.fillRect(this.px[i]! - s * 0.5, this.py[i]! - s * 0.5, s, s);
     }
     ctx.globalAlpha = 1;
   }

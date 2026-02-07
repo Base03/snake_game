@@ -25,7 +25,7 @@ export function createRenderSystem(
     for (const id of entities) {
       const pos = world.get(id, "position")!;
       const drawable = world.get(id, "drawable")!;
-      if (!drawable.visible) continue;
+      if (drawable.visible === false) continue;
       const renderer = getRenderer(drawable.type);
       if (renderer) {
         renderer(

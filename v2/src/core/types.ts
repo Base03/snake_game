@@ -3,6 +3,9 @@
 declare const __entityId: unique symbol;
 export type EntityId = number & { readonly [__entityId]: true };
 
+// ── Rendering types (type-only import, no runtime dependency) ─
+import type { DrawableType } from "../rendering/drawableData.js";
+
 // ── Components ───────────────────────────────────────────────
 // Plain data objects. No methods, no inheritance.
 
@@ -14,6 +17,8 @@ export interface Position {
 export interface Collider {
   solid: boolean;
   trigger: boolean;
+  width?: number; // grid cells, defaults to 1
+  height?: number; // grid cells, defaults to 1
 }
 
 export interface Velocity {
@@ -25,10 +30,10 @@ export interface Velocity {
 
 export interface Drawable {
   layer: number;
-  type: string; // renderer lookup key
+  type: DrawableType; // renderer lookup key — see drawableData.ts
   zIndex: number;
-  visible: boolean;
-  data?: Record<string, unknown>;
+  visible?: boolean; // defaults to true if omitted
+  data?: object; // typed per-renderer — see drawableData.ts
 }
 
 export interface Animated {

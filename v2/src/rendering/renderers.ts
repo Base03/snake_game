@@ -1,7 +1,9 @@
 import type { Drawable, EntityId } from "../core/types.js";
 import type { World } from "../core/World.js";
+import type { DrawableDataMap, DrawableType } from "./drawableData.js";
 
-export type RendererFn = (
+// Internal: the wrapper that RenderSystem calls with the full Drawable.
+type InternalRendererFn = (
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -11,17 +13,34 @@ export type RendererFn = (
   world: World,
 ) => void;
 
-const registry = new Map<string, RendererFn>();
+// Public: renderer callbacks receive typed data directly (no cast needed).
+// G = gridSize (px per tile). Short name for Canvas2D math density.
+export type RendererFn<T extends DrawableType = DrawableType> = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  G: number,
+  data: DrawableDataMap[T],
+  entity: EntityId,
+  world: World,
+) => void;
 
-export function registerRenderer(type: string, fn: RendererFn): void {
-  registry.set(type, fn);
+const registry = new Map<string, InternalRendererFn>();
+
+export function registerRenderer<T extends DrawableType>(
+  type: T,
+  fn: RendererFn<T>,
+): void {
+  registry.set(type, (ctx, x, y, gs, drawable, entity, world) => {
+    fn(ctx, x, y, gs, drawable.data as DrawableDataMap[T], entity, world);
+  });
 }
 
-export function getRenderer(type: string): RendererFn | undefined {
+export function getRenderer(type: string): InternalRendererFn | undefined {
   return registry.get(type);
 }
 
-// ── Shared utilities ──────────────────────────────────────────
+// ── Shared constants ────────────────────────────────────────────
 
 // Deterministic pseudo-random from seed
 function hash(n: number): number {
@@ -30,19 +49,140 @@ function hash(n: number): number {
   return x;
 }
 
-/**
- * Shared hellfire effect: radial glow + bezier flame tongues.
- * Used by hellfire renderer, burning pews, and pentagram vertices.
- *
- * @param cx      Center x (pixel)
- * @param cy      Center y (pixel)
- * @param size    Base size in pixels (roughly 1 grid unit)
- * @param hue     Base flame hue
- * @param flicker Seed for animation phase offset
- * @param now     Current time (ms)
- * @param flames  Number of flame tongues (default 4)
- * @param alpha   Overall intensity multiplier (default 1)
- */
+// ── Fire / Hellfire constants ───────────────────────────────────
+const GLOW_PULSE_SPEED = 0.006;
+const GLOW_PULSE_AMPLITUDE = 0.1;
+const GLOW_BASE_INTENSITY = 0.5;
+const GLOW_RADIUS_RATIO = 0.9;
+const FLAME_ANGLE_WOBBLE_SPEED = 0.008;
+const FLAME_ANGLE_WOBBLE_AMOUNT = 0.5;
+const FLAME_DIST_BASE = 0.08;
+const FLAME_DIST_OSCILLATION_SPEED = 0.01;
+const FLAME_DIST_OSCILLATION_AMOUNT = 0.06;
+const FLAME_HEIGHT_BASE = 0.5;
+const FLAME_HEIGHT_OSCILLATION_SPEED = 0.012;
+const FLAME_HEIGHT_OSCILLATION_AMOUNT = 0.18;
+const FLAME_WIDTH_RATIO = 0.18;
+const FLAME_HUE_OSCILLATION_SPEED = 0.01;
+const FLAME_HUE_VARIATION = 10;
+const FLAME_BASE_ALPHA = 0.85;
+const FLAME_MID_ALPHA = 0.6;
+const FLAME_FLICKER_SPEED = 0.015;
+const FLAME_CORE_ALPHA = 0.3;
+const FLAME_CORE_RADIUS = 0.1;
+const HELLFIRE_SIZE_MULTIPLIER = 1.8;
+
+// ── Pew constants ───────────────────────────────────────────────
+const WOOD_BASE_HUE = 25;
+const WOOD_HUE_VARIATION = 8;
+const WOOD_BASE_SATURATION = 40;
+const WOOD_SAT_VARIATION = 15;
+const WOOD_BASE_LIGHTNESS = 28;
+const WOOD_LIGHT_VARIATION = 8;
+const CHAR_SATURATION_LOSS = 0.6;
+const CHAR_LIGHTNESS_LOSS = 0.7;
+const GRAIN_SPACING_RATIO = 0.25;
+const GRAIN_WAVE_AMPLITUDE = 1.5;
+const GRAIN_ALPHA = 0.4;
+const RAIL_HUE_OFFSET = 3;
+const RAIL_SAT_OFFSET = 5;
+const RAIL_LIGHT_BOOST = 10;
+const SHADOW_LIGHT_DROP = 10;
+const PEW_FLAMES_PER_TILE = 3;
+const CROSS_DETAIL_ALPHA = 0.3;
+
+// ── Altar constants ─────────────────────────────────────────────
+const TRIM_BASE_ALPHA = 0.5;
+const TRIM_CORRUPTION_FADE = 0.3;
+const CLOTH_CORRUPTION_TRANSITION = 0.4;
+const CROSS_INVERSION_START = 0.55;
+const CROSS_INVERSION_RATE = 2.2;
+const CROSS_BASE_ALPHA = 0.45;
+const CROSS_ALPHA_CORRUPTION_FADE = 0.2;
+const CROSS_MIN_ALPHA = 0.08;
+const BLOOD_GLOW_THRESHOLD = 0.5;
+
+// ── Candle constants ────────────────────────────────────────────
+const CANDLE_BODY_WIDTH_RATIO = 0.35;
+const CANDLE_BODY_HEIGHT_RATIO = 1.2;
+const WICK_LENGTH = 5;
+const CANDLE_FLICKER_SPEED_PRIMARY = 0.012;
+const CANDLE_FLICKER_SPEED_SECONDARY = 0.023;
+const CANDLE_FLAME_HEIGHT_BASE = 8;
+const CANDLE_FLAME_HEIGHT_SPEED = 0.008;
+const CANDLE_FLAME_HEIGHT_VARIATION = 3;
+
+// ── Stained glass constants ─────────────────────────────────────
+const WINDOW_HEIGHT_RATIO = 2.5;
+const WINDOW_PANEL_COUNT = 4;
+const PANEL_HUE_STEP = 70;
+const BEAM_PULSE_SPEED = 0.001;
+const BEAM_CORRUPTION_TARGET_HUE = 10;
+const BEAM_HUE_OSCILLATION = 8;
+const BEAM_BASE_ALPHA = 0.08;
+const BEAM_CORRUPTION_ALPHA = 0.06;
+const BEAM_PHASE_OFFSET = 1.7;
+const BEAM_PULSE_AMPLITUDE = 0.012;
+const BEAM_BASE_REACH = 5;
+const BEAM_CORRUPTION_REACH = 5;
+const BEAM_SPREAD_PER_PANEL = 0.8;
+const BEAM_CORE_RATIO = 0.4;
+const GLASS_BASE_SATURATION = 65;
+const GLASS_BASE_LIGHTNESS = 45;
+const GLASS_BASE_ALPHA = 0.55;
+const GLASS_CORRUPTION_ALPHA_BOOST = 0.3;
+const GLASS_SHIMMER_SPEED = 0.002;
+const GLASS_SHIMMER_AMPLITUDE = 0.03;
+
+// ── Crack constants ─────────────────────────────────────────────
+const CRACK_GLOW_BASE = 0.25;
+const CRACK_GLOW_CORRUPTION_BOOST = 0.35;
+const CRACK_GLOW_PULSE_SPEED = 0.003;
+const CRACK_GLOW_PULSE_AMPLITUDE = 0.08;
+const CRACK_BRANCH_LENGTH_RATIO = 0.4;
+const CRACK_BRANCH_GLOW_RATIO = 0.7;
+
+// ── Blood pool constants ────────────────────────────────────────
+const BLOOD_ELLIPSE_RATIO = 0.7;
+
+// ── Pentagram constants ─────────────────────────────────────────
+const PENTAGRAM_MAX_ALPHA = 0.75;
+const PENTAGRAM_ALPHA_RAMP = 1.5;
+const PENTAGRAM_INNER_RADIUS_RATIO = 0.6;
+const PENTAGRAM_INNER_CIRCLE_THRESHOLD = 0.15;
+const PENTAGRAM_STAR_THRESHOLD = 0.08;
+const PENTAGRAM_VERTEX_RADIUS_RATIO = 0.85;
+const PENTAGRAM_VERTEX_FIRE_SIZE = 1.2;
+const PENTAGRAM_VERTEX_FIRE_ALPHA = 0.8;
+
+// ── Statue constants ────────────────────────────────────────────
+const STATUE_FIGURE_RADIUS = 0.4;
+const STATUE_HEAD_OFFSET_X = 0.15;
+const STATUE_HEAD_OFFSET_Y = 0.55;
+const STATUE_HEAD_RADIUS = 0.35;
+const STATUE_HALO_ALPHA = 0.2;
+const STATUE_HALO_RADIUS = 0.55;
+const STATUE_HALO_CORRUPTION_LIMIT = 0.7;
+const STATUE_EYE_OFFSET = 0.12;
+const STATUE_TEAR_LENGTH_RATIO = 1.8;
+
+// ── Floor/wall constants ────────────────────────────────────────
+const FLOOR_BASE_LIGHTNESS = 8;
+const FLOOR_LIGHT_VARIATION = 4;
+const WALL_BASE_LIGHTNESS = 12;
+const WALL_LIGHT_VARIATION = 3;
+const MORTAR_BASE_ALPHA = 0.4;
+const MORTAR_ALPHA_VARIATION = 0.15;
+const MORTAR_Y_BASE = 0.45;
+const MORTAR_Y_VARIATION = 0.1;
+const SPECKLE_BASE_ALPHA = 0.15;
+const SPECKLE_ALPHA_VARIATION = 0.1;
+
+// ═════════════════════════════════════════════════════════════════
+// Shared hellfire effect: radial glow + bezier flame tongues.
+// Used by hellfire renderer, burning pews, and pentagram vertices.
+// ═════════════════════════════════════════════════════════════════
+
 export function drawHellfireEffect(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -55,140 +195,129 @@ export function drawHellfireEffect(
   alpha = 1,
 ): void {
   // Radial glow
-  const crackGlow =
-    (0.5 + Math.sin(now * 0.006 + flicker) * 0.1) * alpha;
-  const gR = size * 0.9;
+  const glowIntensity =
+    (GLOW_BASE_INTENSITY + Math.sin(now * GLOW_PULSE_SPEED + flicker) * GLOW_PULSE_AMPLITUDE) *
+    alpha;
+  const gR = size * GLOW_RADIUS_RATIO;
   const gGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, gR);
-  gGrad.addColorStop(0, `rgba(255,60,0,${crackGlow * 0.5})`);
-  gGrad.addColorStop(0.5, `rgba(200,20,0,${crackGlow * 0.2})`);
+  gGrad.addColorStop(0, `rgba(255,60,0,${glowIntensity * 0.5})`);
+  gGrad.addColorStop(0.5, `rgba(200,20,0,${glowIntensity * 0.2})`);
   gGrad.addColorStop(1, "rgba(100,0,0,0)");
   ctx.fillStyle = gGrad;
   ctx.beginPath();
   ctx.arc(cx, cy, gR, 0, Math.PI * 2);
   ctx.fill();
 
-  // Flame tongues — each gets a unique phase offset via hash
+  // Flame tongues
   for (let i = 0; i < flames; i++) {
     const theta = hash(flicker * 13.7 + i * 91.3) * Math.PI * 2;
     const angle =
-      (i / flames) * Math.PI * 2 + Math.sin(now * 0.008 + theta) * 0.5;
+      (i / flames) * Math.PI * 2 +
+      Math.sin(now * FLAME_ANGLE_WOBBLE_SPEED + theta) * FLAME_ANGLE_WOBBLE_AMOUNT;
     const dist =
-      size * 0.08 + Math.sin(now * 0.01 + theta * 1.3) * size * 0.06;
+      size * FLAME_DIST_BASE +
+      Math.sin(now * FLAME_DIST_OSCILLATION_SPEED + theta * 1.3) * size * FLAME_DIST_OSCILLATION_AMOUNT;
     const fx = cx + Math.cos(angle) * dist;
     const fy = cy + Math.sin(angle) * dist;
     const fH =
-      (size * 0.5 + Math.sin(now * 0.012 + theta * 0.7) * size * 0.18) *
+      (size * FLAME_HEIGHT_BASE +
+        Math.sin(now * FLAME_HEIGHT_OSCILLATION_SPEED + theta * 0.7) *
+          size *
+          FLAME_HEIGHT_OSCILLATION_AMOUNT) *
       alpha;
-    const fW = size * 0.18;
-    const fHue = hue + Math.sin(now * 0.01 + theta * 1.1) * 10;
+    const fW = size * FLAME_WIDTH_RATIO;
+    const fHue =
+      hue + Math.sin(now * FLAME_HUE_OSCILLATION_SPEED + theta * 1.1) * FLAME_HUE_VARIATION;
     const fGrad = ctx.createLinearGradient(fx, fy, fx, fy - fH);
-    fGrad.addColorStop(0, `hsla(${fHue},100%,50%,${0.85 * alpha})`);
-    fGrad.addColorStop(0.4, `hsla(${fHue + 20},100%,58%,${0.6 * alpha})`);
+    fGrad.addColorStop(0, `hsla(${fHue},100%,50%,${FLAME_BASE_ALPHA * alpha})`);
+    fGrad.addColorStop(0.4, `hsla(${fHue + 20},100%,58%,${FLAME_MID_ALPHA * alpha})`);
     fGrad.addColorStop(1, `hsla(${fHue + 35},100%,75%,0)`);
     ctx.fillStyle = fGrad;
-    const flk = Math.sin(now * 0.015 + theta * 0.9) * fW * 0.5;
+    const flk = Math.sin(now * FLAME_FLICKER_SPEED + theta * 0.9) * fW * 0.5;
     ctx.beginPath();
     ctx.moveTo(fx - fW, fy);
-    ctx.bezierCurveTo(
-      fx - fW * 0.5, fy - fH * 0.4,
-      fx + flk - fW * 0.3, fy - fH * 0.8,
-      fx + flk, fy - fH,
-    );
-    ctx.bezierCurveTo(
-      fx + flk + fW * 0.3, fy - fH * 0.8,
-      fx + fW * 0.5, fy - fH * 0.4,
-      fx + fW, fy,
-    );
+    ctx.bezierCurveTo(fx - fW * 0.5, fy - fH * 0.4, fx + flk - fW * 0.3, fy - fH * 0.8, fx + flk, fy - fH);
+    ctx.bezierCurveTo(fx + flk + fW * 0.3, fy - fH * 0.8, fx + fW * 0.5, fy - fH * 0.4, fx + fW, fy);
     ctx.fill();
   }
 
   // Bright core
-  ctx.fillStyle = `rgba(255,200,100,${0.3 * alpha})`;
+  ctx.fillStyle = `rgba(255,200,100,${FLAME_CORE_ALPHA * alpha})`;
   ctx.beginPath();
-  ctx.arc(cx, cy, size * 0.1, 0, Math.PI * 2);
+  ctx.arc(cx, cy, size * FLAME_CORE_RADIUS, 0, Math.PI * 2);
   ctx.fill();
 }
 
 // ── Pew ────────────────────────────────────────────────────────
-// Warm wood block with grain lines. End caps get a cross detail.
-registerRenderer("pew", (ctx, x, y, G, drawable, _entity, world) => {
-  const data = drawable.data ?? {};
-  const dx = (data["dx"] as number) ?? 0;
-  const w = (data["width"] as number) ?? 1;
-  const burning = (data["burning"] as boolean) ?? false;
+registerRenderer("pew", (ctx, x, y, G, data, entity, world) => {
+  const flammable = world.get(entity, "flammable");
+  const burning = flammable?.burning ?? false;
   const now = world.time.now;
 
-  // Wood grain (shared between normal and burning)
-  const seed = hash(dx * 31.7 + ((data["row"] as number) ?? 0) * 17.3);
-  const woodH = 25 + seed * 8;
-  const baseS = 40 + seed * 15;
-  const baseL = 28 + seed * 8;
+  const seed = hash(data.dx * 31.7 + data.row * 17.3);
+  const woodH = WOOD_BASE_HUE + seed * WOOD_HUE_VARIATION;
+  const baseS = WOOD_BASE_SATURATION + seed * WOOD_SAT_VARIATION;
+  const baseL = WOOD_BASE_LIGHTNESS + seed * WOOD_LIGHT_VARIATION;
 
   if (burning) {
-    const bt = Math.min(((data["burnT"] as number) ?? 0) / 3500, 1);
-    // Darkened/charred wood — full opacity, just darker colors
-    const woodS = baseS * (1 - bt * 0.6);
-    const woodL = baseL * (1 - bt * 0.7);
+    const burnDuration = flammable?.burnDuration ?? 3500;
+    const bt = Math.min((flammable?.burnT ?? 0) / burnDuration, 1);
+    const woodS = baseS * (1 - bt * CHAR_SATURATION_LOSS);
+    const woodL = baseL * (1 - bt * CHAR_LIGHTNESS_LOSS);
     ctx.fillStyle = `hsl(${woodH},${woodS}%,${woodL}%)`;
     ctx.fillRect(x + 1, y + 1, G - 2, G - 2);
     // Top rail (charred)
-    ctx.fillStyle = `hsl(${woodH + 3},${Math.max(woodS - 5, 0)}%,${Math.max(woodL - 3, 4)}%)`;
+    ctx.fillStyle = `hsl(${woodH + RAIL_HUE_OFFSET},${Math.max(woodS - RAIL_SAT_OFFSET, 0)}%,${Math.max(woodL - 3, 4)}%)`;
     ctx.fillRect(x + 2, y + 1, G - 4, 3);
     // Grain lines (fading as it chars)
     if (bt < 0.9) {
-      ctx.strokeStyle = `hsla(${woodH - 5},${woodS}%,${Math.max(woodL - 8, 2)}%,${0.4 * (1 - bt)})`;
+      ctx.strokeStyle = `hsla(${woodH - 5},${woodS}%,${Math.max(woodL - 8, 2)}%,${GRAIN_ALPHA * (1 - bt)})`;
       ctx.lineWidth = 0.5;
       for (let g = 0; g < 3; g++) {
-        const gy = y + 4 + g * (G * 0.25);
+        const gy = y + 4 + g * (G * GRAIN_SPACING_RATIO);
         ctx.beginPath();
         ctx.moveTo(x + 2, gy);
-        ctx.lineTo(x + G - 2, gy + Math.sin(seed + g) * 1.5);
+        ctx.lineTo(x + G - 2, gy + Math.sin(seed + g) * GRAIN_WAVE_AMPLITUDE);
         ctx.stroke();
       }
     }
-    // Hellfire centered on each pew tile, same size as standalone hellfire
-    const hue = (data["fireHue"] as number) ?? 15;
     drawHellfireEffect(
       ctx,
       x + G / 2,
-      y + G / 2,       // centered on tile
-      G * 1.8,         // match standalone hellfire size
-      hue,
-      dx * 1.7,
+      y + G / 2,
+      G * HELLFIRE_SIZE_MULTIPLIER,
+      data.fireHue,
+      data.dx * 1.7,
       now,
-      3,               // 3 flame tongues per pew tile
-      bt,              // intensity ramps with burn progress
+      PEW_FLAMES_PER_TILE,
+      bt,
     );
   } else {
-    // Normal pew
     ctx.fillStyle = `hsl(${woodH},${baseS}%,${baseL}%)`;
     ctx.fillRect(x + 1, y + 1, G - 2, G - 2);
-    // Top rail highlight
-    ctx.fillStyle = `hsl(${woodH + 3},${baseS - 5}%,${baseL + 10}%)`;
+    ctx.fillStyle = `hsl(${woodH + RAIL_HUE_OFFSET},${baseS - RAIL_SAT_OFFSET}%,${baseL + RAIL_LIGHT_BOOST}%)`;
     ctx.fillRect(x + 2, y + 1, G - 4, 3);
-    // Grain lines
-    ctx.strokeStyle = `hsla(${woodH - 5},${baseS}%,${baseL - 8}%,0.4)`;
+    ctx.strokeStyle = `hsla(${woodH - 5},${baseS}%,${baseL - 8}%,${GRAIN_ALPHA})`;
     ctx.lineWidth = 0.5;
     for (let g = 0; g < 3; g++) {
-      const gy = y + 4 + g * (G * 0.25);
+      const gy = y + 4 + g * (G * GRAIN_SPACING_RATIO);
       ctx.beginPath();
       ctx.moveTo(x + 2, gy);
-      ctx.lineTo(x + G - 2, gy + Math.sin(seed + g) * 1.5);
+      ctx.lineTo(x + G - 2, gy + Math.sin(seed + g) * GRAIN_WAVE_AMPLITUDE);
       ctx.stroke();
     }
-    // Bottom shadow
-    ctx.fillStyle = `hsl(${woodH},${baseS}%,${baseL - 10}%)`;
+    ctx.fillStyle = `hsl(${woodH},${baseS}%,${baseL - SHADOW_LIGHT_DROP}%)`;
     ctx.fillRect(x + 1, y + G - 3, G - 2, 2);
   }
 
   // End caps with cross detail
-  if (dx === 0 || dx === w - 1) {
+  if (data.dx === 0 || data.dx === data.width - 1) {
     const capLum = burning ? 12 : 35;
     ctx.fillStyle = `hsl(22,40%,${capLum}%)`;
-    ctx.fillRect(dx === 0 ? x + 1 : x + G - 4, y + 1, 3, G - 2);
+    ctx.fillRect(data.dx === 0 ? x + 1 : x + G - 4, y + 1, 3, G - 2);
     if (!burning) {
-      const capX = dx === 0 ? x + 2.5 : x + G - 2.5;
-      ctx.strokeStyle = "rgba(200,160,80,0.3)";
+      const capX = data.dx === 0 ? x + 2.5 : x + G - 2.5;
+      ctx.strokeStyle = `rgba(200,160,80,${CROSS_DETAIL_ALPHA})`;
       ctx.lineWidth = 0.8;
       ctx.beginPath();
       ctx.moveTo(capX, y + G * 0.25);
@@ -201,22 +330,17 @@ registerRenderer("pew", (ctx, x, y, G, drawable, _entity, world) => {
 });
 
 // ── Altar ──────────────────────────────────────────────────────
-// Stone base with gold trim, cloth, and cross ON the altar.
-registerRenderer("altar", (ctx, x, y, G, drawable) => {
-  const data = drawable.data ?? {};
-  const tileW = (data["tileW"] as number) ?? 6;
-  const tileH = (data["tileH"] as number) ?? 3;
-  const aW = tileW * G;
-  const aH = tileH * G;
-  const corruption = (data["corruption"] as number) ?? 0;
+registerRenderer("altar", (ctx, x, y, G, data) => {
+  const aW = data.tileW * G;
+  const aH = data.tileH * G;
+  const c = data.corruption;
 
   // Stone base
   ctx.fillStyle = "#3d2d25";
   ctx.fillRect(x + 2, y + 2, aW - 4, aH - 2);
-  // Stone texture lines
   ctx.strokeStyle = "rgba(80,60,45,0.3)";
   ctx.lineWidth = 0.5;
-  for (let i = 1; i < tileH; i++) {
+  for (let i = 1; i < data.tileH; i++) {
     ctx.beginPath();
     ctx.moveTo(x + 4, y + i * G);
     ctx.lineTo(x + aW - 4, y + i * G + Math.sin(i * 3.7) * 2);
@@ -224,7 +348,7 @@ registerRenderer("altar", (ctx, x, y, G, drawable) => {
   }
 
   // Gold trim
-  const trimAlpha = 0.5 - corruption * 0.3;
+  const trimAlpha = TRIM_BASE_ALPHA - c * TRIM_CORRUPTION_FADE;
   ctx.strokeStyle = `rgba(210,175,90,${trimAlpha})`;
   ctx.lineWidth = 2;
   ctx.strokeRect(x + 3, y + 3, aW - 6, aH - 4);
@@ -234,22 +358,23 @@ registerRenderer("altar", (ctx, x, y, G, drawable) => {
 
   // Cloth
   const clothH = 6;
-  const clothHue = corruption > 0.4 ? 0 : 120 - corruption * 200;
-  ctx.fillStyle = `hsl(${clothHue},${25 + corruption * 45}%,${18 + corruption * 6}%)`;
+  const clothHue = c > CLOTH_CORRUPTION_TRANSITION ? 0 : 120 - c * 200;
+  ctx.fillStyle = `hsl(${clothHue},${25 + c * 45}%,${18 + c * 6}%)`;
   ctx.fillRect(x + 8, y + aH - clothH - 2, aW - 16, clothH);
-  // Cloth fringe
   ctx.fillStyle = `rgba(210,175,90,${trimAlpha * 0.7})`;
   ctx.fillRect(x + 8, y + aH - clothH - 2, aW - 16, 1.5);
 
-  // Cross — centered ON the altar front face
+  // Cross — inverts with corruption
   const crossX = x + aW / 2;
   const crossY = y + aH * 0.5;
   ctx.save();
   ctx.translate(crossX, crossY);
   const inv =
-    corruption > 0.55 ? Math.min((corruption - 0.55) * 2.2, 1) : 0;
+    c > CROSS_INVERSION_START
+      ? Math.min((c - CROSS_INVERSION_START) * CROSS_INVERSION_RATE, 1)
+      : 0;
   ctx.rotate(Math.PI * inv);
-  ctx.strokeStyle = `rgba(210,175,90,${Math.max(0.45 - corruption * 0.2, 0.08)})`;
+  ctx.strokeStyle = `rgba(210,175,90,${Math.max(CROSS_BASE_ALPHA - c * CROSS_ALPHA_CORRUPTION_FADE, CROSS_MIN_ALPHA)})`;
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(0, -aH * 0.35);
@@ -257,8 +382,8 @@ registerRenderer("altar", (ctx, x, y, G, drawable) => {
   ctx.moveTo(-G * 0.5, -aH * 0.12);
   ctx.lineTo(G * 0.5, -aH * 0.12);
   ctx.stroke();
-  if (corruption > 0.5) {
-    ctx.strokeStyle = `rgba(200,30,0,${(corruption - 0.5) * 0.5})`;
+  if (c > BLOOD_GLOW_THRESHOLD) {
+    ctx.strokeStyle = `rgba(200,30,0,${(c - BLOOD_GLOW_THRESHOLD) * 0.5})`;
     ctx.lineWidth = 1.5;
     ctx.stroke();
   }
@@ -266,22 +391,17 @@ registerRenderer("altar", (ctx, x, y, G, drawable) => {
 });
 
 // ── Candle ─────────────────────────────────────────────────────
-// Wax body with wick and animated teardrop flame.
-registerRenderer("candle", (ctx, x, y, G, drawable, _entity, world) => {
-  const data = drawable.data ?? {};
-  const hue = (data["hue"] as number) ?? 40;
-  const heightMul = (data["height"] as number) ?? 1;
-  const flicker = (data["flicker"] as number) ?? 0;
+registerRenderer("candle", (ctx, x, y, G, data, _entity, world) => {
   const now = world.time.now;
 
   const cx = x + G / 2;
   const baseY = y + G;
-  const cH = G * 1.2 * heightMul;
-  const cW = G * 0.35;
+  const cH = G * CANDLE_BODY_HEIGHT_RATIO * data.height;
+  const cW = G * CANDLE_BODY_WIDTH_RATIO;
   const topY = baseY - cH;
 
   // Wax body
-  ctx.fillStyle = `hsl(${hue + 10},20%,70%)`;
+  ctx.fillStyle = `hsl(${data.hue + 10},20%,70%)`;
   ctx.beginPath();
   ctx.roundRect(cx - cW, topY, cW * 2, cH, [3, 3, 1, 1]);
   ctx.fill();
@@ -291,18 +411,19 @@ registerRenderer("candle", (ctx, x, y, G, drawable, _entity, world) => {
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(cx, topY);
-  ctx.lineTo(cx, topY - 5);
+  ctx.lineTo(cx, topY - WICK_LENGTH);
   ctx.stroke();
 
   // Flame
   const flick =
-    Math.sin(now * 0.012 + flicker) * 2 +
-    Math.sin(now * 0.023 + flicker * 2);
-  const fH = 8 + Math.sin(now * 0.008 + flicker) * 3;
+    Math.sin(now * CANDLE_FLICKER_SPEED_PRIMARY + data.flicker) * 2 +
+    Math.sin(now * CANDLE_FLICKER_SPEED_SECONDARY + data.flicker * 2);
+  const fH =
+    CANDLE_FLAME_HEIGHT_BASE +
+    Math.sin(now * CANDLE_FLAME_HEIGHT_SPEED + data.flicker) * CANDLE_FLAME_HEIGHT_VARIATION;
   const fCx = cx + flick * 0.5;
-  const fCy = topY - 5;
+  const fCy = topY - WICK_LENGTH;
 
-  // Flame body (bezier teardrop)
   const fG = ctx.createLinearGradient(fCx, fCy, fCx, fCy - fH);
   fG.addColorStop(0, "hsla(30,100%,50%,0.95)");
   fG.addColorStop(0.3, "hsla(45,100%,60%,0.9)");
@@ -311,16 +432,8 @@ registerRenderer("candle", (ctx, x, y, G, drawable, _entity, world) => {
   ctx.fillStyle = fG;
   ctx.beginPath();
   ctx.moveTo(fCx, fCy);
-  ctx.bezierCurveTo(
-    fCx - 5, fCy - fH * 0.3,
-    fCx - 4 + flick * 0.3, fCy - fH * 0.8,
-    fCx + flick * 0.4, fCy - fH,
-  );
-  ctx.bezierCurveTo(
-    fCx + 4 + flick * 0.3, fCy - fH * 0.8,
-    fCx + 5, fCy - fH * 0.3,
-    fCx, fCy,
-  );
+  ctx.bezierCurveTo(fCx - 5, fCy - fH * 0.3, fCx - 4 + flick * 0.3, fCy - fH * 0.8, fCx + flick * 0.4, fCy - fH);
+  ctx.bezierCurveTo(fCx + 4 + flick * 0.3, fCy - fH * 0.8, fCx + 5, fCy - fH * 0.3, fCx, fCy);
   ctx.fill();
 
   // Bright core
@@ -331,34 +444,17 @@ registerRenderer("candle", (ctx, x, y, G, drawable, _entity, world) => {
 });
 
 // ── Hellfire ───────────────────────────────────────────────────
-// Delegates to shared drawHellfireEffect. Size boosted 50%.
-registerRenderer("hellfire", (ctx, x, y, G, drawable, _entity, world) => {
-  const data = drawable.data ?? {};
-  const hue = (data["hue"] as number) ?? 15;
-  const flicker = (data["flicker"] as number) ?? 0;
-  drawHellfireEffect(
-    ctx,
-    x + G / 2,
-    y + G / 2,
-    G * 1.8,     // 50% larger than original G*1.2
-    hue,
-    flicker,
-    world.time.now,
-  );
+registerRenderer("hellfire", (ctx, x, y, G, data, _entity, world) => {
+  drawHellfireEffect(ctx, x + G / 2, y + G / 2, G * HELLFIRE_SIZE_MULTIPLIER, data.hue, data.flicker, world.time.now);
 });
 
 // ── Snake Head ─────────────────────────────────────────────────
-// Rounded green rectangle with directional eyes + pupils.
-registerRenderer("snakeHead", (ctx, x, y, G, drawable, entity, world) => {
-  const data = drawable.data ?? {};
-  const headColor = (data["color"] as string) ?? "hsl(115,70%,38%)";
-  const eyeColor = (data["eyeColor"] as string) ?? "#1a0a0a";
-
+registerRenderer("snakeHead", (ctx, x, y, G, data, entity, world) => {
   const vel = world.get(entity, "velocity");
   const dirX = vel?.dx ?? 1;
   const dirY = vel?.dy ?? 0;
 
-  ctx.fillStyle = headColor;
+  ctx.fillStyle = data.color;
   ctx.beginPath();
   ctx.roundRect(x + 1, y + 1, G - 2, G - 2, 5);
   ctx.fill();
@@ -369,7 +465,7 @@ registerRenderer("snakeHead", (ctx, x, y, G, drawable, entity, world) => {
   const eOX2 = dirX === 0 ? 12 : eOX;
   const eOY2 = dirY === 0 ? 12 : eOY;
 
-  ctx.fillStyle = eyeColor;
+  ctx.fillStyle = data.eyeColor;
   ctx.beginPath();
   ctx.arc(x + eOX, y + eOY, eS, 0, Math.PI * 2);
   ctx.fill();
@@ -387,68 +483,55 @@ registerRenderer("snakeHead", (ctx, x, y, G, drawable, entity, world) => {
 });
 
 // ── Snake Segment ──────────────────────────────────────────────
-registerRenderer("snakeSegment", (ctx, x, y, G, drawable) => {
-  const data = drawable.data ?? {};
-  const color = (data["color"] as string) ?? "hsl(120,55%,32%)";
-  ctx.fillStyle = color;
+registerRenderer("snakeSegment", (ctx, x, y, G, data) => {
+  ctx.fillStyle = data.color;
   ctx.beginPath();
   ctx.roundRect(x + 1.5, y + 1.5, G - 3, G - 3, 3);
   ctx.fill();
 });
 
 // ── Statue ─────────────────────────────────────────────────────
-registerRenderer("statue", (ctx, x, y, G, drawable) => {
-  const data = drawable.data ?? {};
-  const side = (data["side"] as number) ?? 0;
-  const crying = (data["crying"] as boolean) ?? false;
-  const corruption = (data["corruption"] as number) ?? 0;
-
+registerRenderer("statue", (ctx, x, y, G, data) => {
   const sx = x + G / 2;
   const sy = y + G / 2;
-  const r = G * 0.4;
-  const headDir = side === 0 ? 1 : -1;
+  const r = G * STATUE_FIGURE_RADIUS;
+  const headDir = data.side === 0 ? 1 : -1;
 
   ctx.fillStyle = "#3a3530";
   ctx.fillRect(x + 2, y + 2, G - 4, G - 4);
 
-  const figHue = crying ? 0 : 30;
-  const figSat = crying ? 10 : 6;
-  const figLum = crying ? 32 : 40;
+  const figHue = data.crying ? 0 : 30;
+  const figSat = data.crying ? 10 : 6;
+  const figLum = data.crying ? 32 : 40;
   ctx.fillStyle = `hsl(${figHue},${figSat}%,${figLum}%)`;
   ctx.beginPath();
   ctx.ellipse(sx, sy, r * 0.7, r, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  const headX = sx + headDir * r * STATUE_HEAD_OFFSET_X;
+  const headY = sy - r * STATUE_HEAD_OFFSET_Y;
   ctx.fillStyle = `hsl(${figHue},${figSat}%,${figLum + 5}%)`;
   ctx.beginPath();
-  ctx.arc(sx + headDir * r * 0.15, sy - r * 0.55, r * 0.35, 0, Math.PI * 2);
+  ctx.arc(headX, headY, r * STATUE_HEAD_RADIUS, 0, Math.PI * 2);
   ctx.fill();
 
-  if (corruption < 0.7) {
-    const haloA = 0.2 * (1 - corruption);
+  if (data.corruption < STATUE_HALO_CORRUPTION_LIMIT) {
+    const haloA = STATUE_HALO_ALPHA * (1 - data.corruption);
     ctx.strokeStyle = `rgba(210,190,120,${haloA})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(
-      sx + headDir * r * 0.15,
-      sy - r * 0.55,
-      r * 0.55,
-      0,
-      Math.PI * 2,
-    );
+    ctx.arc(headX, headY, r * STATUE_HALO_RADIUS, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  if (crying) {
-    const tearA = (data["tearY"] as number) ?? 0.5;
-    const headX = sx + headDir * r * 0.15;
-    const headY = sy - r * 0.55;
-    for (const eOff of [-0.12, 0.12]) {
+  if (data.crying) {
+    const tearA = data.tearY;
+    for (const eOff of [-STATUE_EYE_OFFSET, STATUE_EYE_OFFSET]) {
       ctx.fillStyle = `rgba(120,0,0,${tearA * 0.8})`;
       ctx.beginPath();
       ctx.arc(headX + eOff * G, headY, 1.2, 0, Math.PI * 2);
       ctx.fill();
-      const tearLen = tearA * r * 1.8;
+      const tearLen = tearA * r * STATUE_TEAR_LENGTH_RATIO;
       ctx.fillStyle = `rgba(100,0,0,${tearA * 0.6})`;
       ctx.fillRect(headX + eOff * G - 0.8, headY, 1.6, tearLen);
     }
@@ -456,48 +539,106 @@ registerRenderer("statue", (ctx, x, y, G, drawable) => {
 });
 
 // ── Stained Glass ──────────────────────────────────────────────
-registerRenderer("stainedGlass", (ctx, x, y, G, drawable) => {
-  const data = drawable.data ?? {};
-  const hue = (data["hue"] as number) ?? 200;
-  const corruption = (data["corruption"] as number) ?? 0;
-  const wH = G * 2.5;
+registerRenderer("stainedGlass", (ctx, x, y, G, data, _entity, world) => {
+  const now = world.time.now;
+  const c = data.corruption;
+  const wH = G * WINDOW_HEIGHT_RATIO;
 
+  const castDir = data.side === 0 ? 1 : -1;
+  const beamOriginX = x + (data.side === 0 ? G : 0);
+  const beamLen = G * (BEAM_BASE_REACH + c * BEAM_CORRUPTION_REACH);
+
+  // Per-panel light beams (drawn before window frame)
+  ctx.save();
+  for (let i = 0; i < WINDOW_PANEL_COUNT; i++) {
+    const panelY = y - wH * 0.4 + ((wH * 0.8) / WINDOW_PANEL_COUNT) * i;
+    const panelH = (wH * 0.8) / WINDOW_PANEL_COUNT - 2;
+    const panelCy = panelY + panelH * 0.5;
+    const halfH = panelH * 0.5;
+    const spread = G * BEAM_SPREAD_PER_PANEL;
+
+    const origHue = (data.hue + i * PANEL_HUE_STEP) % 360;
+    const targetHue = BEAM_CORRUPTION_TARGET_HUE + Math.sin(now * BEAM_PULSE_SPEED + i) * BEAM_HUE_OSCILLATION;
+    const h = origHue + (targetHue - origHue) * c;
+    const lightAlpha =
+      BEAM_BASE_ALPHA + c * BEAM_CORRUPTION_ALPHA + Math.sin(now * BEAM_PULSE_SPEED + i * BEAM_PHASE_OFFSET) * BEAM_PULSE_AMPLITUDE;
+
+    const farX = beamOriginX + castDir * beamLen;
+
+    // Outer beam
+    ctx.beginPath();
+    ctx.moveTo(beamOriginX, panelCy - halfH);
+    ctx.lineTo(beamOriginX, panelCy + halfH);
+    ctx.lineTo(farX, panelCy + spread);
+    ctx.lineTo(farX, panelCy - spread);
+    ctx.closePath();
+    const bGrad = ctx.createLinearGradient(beamOriginX, panelCy, farX, panelCy);
+    bGrad.addColorStop(0, `hsla(${h},${50 + c * 40}%,${35 + c * 20}%,${lightAlpha * 1.8})`);
+    bGrad.addColorStop(0.3, `hsla(${h},${45 + c * 35}%,${30 + c * 15}%,${lightAlpha})`);
+    bGrad.addColorStop(0.7, `hsla(${h},${40 + c * 30}%,${25 + c * 10}%,${lightAlpha * 0.4})`);
+    bGrad.addColorStop(1, "hsla(0,0%,0%,0)");
+    ctx.fillStyle = bGrad;
+    ctx.fill();
+
+    // Core beam (narrower, brighter)
+    const coreHalf = halfH * BEAM_CORE_RATIO;
+    const coreSpread = spread * BEAM_CORE_RATIO;
+    ctx.beginPath();
+    ctx.moveTo(beamOriginX, panelCy - coreHalf);
+    ctx.lineTo(beamOriginX, panelCy + coreHalf);
+    ctx.lineTo(farX, panelCy + coreSpread);
+    ctx.lineTo(farX, panelCy - coreSpread);
+    ctx.closePath();
+    const cGrad = ctx.createLinearGradient(beamOriginX, panelCy, farX, panelCy);
+    cGrad.addColorStop(0, `hsla(${h},${60 + c * 30}%,${45 + c * 20}%,${lightAlpha * 1.2})`);
+    cGrad.addColorStop(0.5, `hsla(${h},${50 + c * 25}%,${35 + c * 15}%,${lightAlpha * 0.5})`);
+    cGrad.addColorStop(1, "hsla(0,0%,0%,0)");
+    ctx.fillStyle = cGrad;
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Window frame
   ctx.fillStyle = "#1a1210";
   ctx.fillRect(x, y - wH * 0.5, G, wH);
 
-  const panels = 4;
-  for (let i = 0; i < panels; i++) {
-    const panelY = y - wH * 0.4 + ((wH * 0.8) / panels) * i;
-    const panelH = (wH * 0.8) / panels - 2;
-    const origHue = (hue + i * 70) % 360;
-    const h = origHue + (10 - origHue) * corruption;
-    const sat = 55 + corruption * 35;
-    const lum = 30 + corruption * 22;
-    const alpha = 0.15 + corruption * 0.25;
+  // Glass panels
+  for (let i = 0; i < WINDOW_PANEL_COUNT; i++) {
+    const panelY = y - wH * 0.4 + ((wH * 0.8) / WINDOW_PANEL_COUNT) * i;
+    const panelH = (wH * 0.8) / WINDOW_PANEL_COUNT - 2;
+    const origHue = (data.hue + i * PANEL_HUE_STEP) % 360;
+    const h = origHue + (10 - origHue) * c;
+    const sat = GLASS_BASE_SATURATION + c * 25;
+    const lum = GLASS_BASE_LIGHTNESS + c * 15;
+    const alpha = GLASS_BASE_ALPHA + c * GLASS_CORRUPTION_ALPHA_BOOST + Math.sin(now * GLASS_SHIMMER_SPEED + i) * GLASS_SHIMMER_AMPLITUDE;
     ctx.fillStyle = `hsla(${h},${sat}%,${lum}%,${alpha})`;
     ctx.fillRect(x + 1, panelY, G - 2, panelH);
-    ctx.fillStyle = `hsla(${h},${sat + 10}%,${lum + 15}%,${alpha * 0.5})`;
+    ctx.fillStyle = `hsla(${h},${sat + 10}%,${lum + 20}%,${alpha * 0.6})`;
     ctx.fillRect(x + 3, panelY + 2, G - 6, panelH - 4);
+    ctx.fillStyle = `hsla(${h},${sat}%,${lum + 35}%,${alpha * 0.3})`;
+    const pipY = panelY + panelH * 0.5;
+    ctx.fillRect(x + G * 0.3, pipY - 1, G * 0.4, 2);
   }
+
+  // Frame border
+  ctx.strokeStyle = "#0d0a08";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + 0.5, y - wH * 0.5 + 0.5, G - 1, wH - 1);
 });
 
 // ── Crack ──────────────────────────────────────────────────────
-registerRenderer("crack", (ctx, x, y, G, drawable, _entity, world) => {
-  const data = drawable.data ?? {};
-  const angle = (data["angle"] as number) ?? 0;
-  const len = (data["len"] as number) ?? 0.5;
-  const corruption = (data["corruption"] as number) ?? 0;
-  const hasBranch = (data["branch"] as boolean) ?? false;
-  const branchAngle = (data["branchAngle"] as number) ?? 0;
+registerRenderer("crack", (ctx, x, y, G, data, _entity, world) => {
   const now = world.time.now;
 
   const cx = x + G / 2;
   const cy = y + G / 2;
-  const ex = cx + Math.cos(angle) * len * G;
-  const ey = cy + Math.sin(angle) * len * G;
+  const ex = cx + Math.cos(data.angle) * data.len * G;
+  const ey = cy + Math.sin(data.angle) * data.len * G;
 
   const glowA =
-    0.25 + corruption * 0.35 + Math.sin(now * 0.003 + angle) * 0.08;
+    CRACK_GLOW_BASE +
+    data.corruption * CRACK_GLOW_CORRUPTION_BOOST +
+    Math.sin(now * CRACK_GLOW_PULSE_SPEED + data.angle) * CRACK_GLOW_PULSE_AMPLITUDE;
   ctx.strokeStyle = `rgba(200,40,0,${glowA})`;
   ctx.lineWidth = 2.5;
   ctx.beginPath();
@@ -512,13 +653,13 @@ registerRenderer("crack", (ctx, x, y, G, drawable, _entity, world) => {
   ctx.lineTo(ex, ey);
   ctx.stroke();
 
-  if (hasBranch) {
+  if (data.branch) {
     const mx = (cx + ex) / 2;
     const my = (cy + ey) / 2;
-    const bAngle = angle + branchAngle;
-    const bx = mx + Math.cos(bAngle) * len * G * 0.4;
-    const by = my + Math.sin(bAngle) * len * G * 0.4;
-    ctx.strokeStyle = `rgba(140,20,0,${glowA * 0.7})`;
+    const bAngle = data.angle + data.branchAngle;
+    const bx = mx + Math.cos(bAngle) * data.len * G * CRACK_BRANCH_LENGTH_RATIO;
+    const by = my + Math.sin(bAngle) * data.len * G * CRACK_BRANCH_LENGTH_RATIO;
+    ctx.strokeStyle = `rgba(140,20,0,${glowA * CRACK_BRANCH_GLOW_RATIO})`;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(mx, my);
@@ -534,79 +675,66 @@ registerRenderer("crack", (ctx, x, y, G, drawable, _entity, world) => {
 });
 
 // ── Blood Pool ─────────────────────────────────────────────────
-registerRenderer("bloodPool", (ctx, x, y, G, drawable) => {
-  const data = drawable.data ?? {};
-  const alpha = (data["alpha"] as number) ?? 0.3;
-  const radius = (data["radius"] as number) ?? 0.5;
-  const angle = (data["angle"] as number) ?? 0;
-
+registerRenderer("bloodPool", (ctx, x, y, G, data) => {
   const bx = x + G / 2;
   const by = y + G / 2;
-  const br = radius * G;
+  const br = data.radius * G;
 
   const grad = ctx.createRadialGradient(bx, by, 0, bx, by, br);
-  grad.addColorStop(0, `rgba(70,0,0,${alpha})`);
-  grad.addColorStop(0.6, `rgba(45,0,0,${alpha * 0.5})`);
+  grad.addColorStop(0, `rgba(70,0,0,${data.alpha})`);
+  grad.addColorStop(0.6, `rgba(45,0,0,${data.alpha * 0.5})`);
   grad.addColorStop(1, "rgba(30,0,0,0)");
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.ellipse(bx, by, br, br * 0.7, angle, 0, Math.PI * 2);
+  ctx.ellipse(bx, by, br, br * BLOOD_ELLIPSE_RATIO, data.angle, 0, Math.PI * 2);
   ctx.fill();
 });
 
 // ── Pentagram ──────────────────────────────────────────────────
-// Circle + star with configurable hue and rotation. Hellfire at each vertex.
-// data.rotation: current rotation in radians (updated externally by systems)
-registerRenderer("pentagram", (ctx, x, y, G, drawable, _entity, world) => {
-  const data = drawable.data ?? {};
-  const radius = (data["radius"] as number) ?? 3;
-  const growth = (data["growth"] as number) ?? 1;
-  const corruption = (data["corruption"] as number) ?? 0;
-  const hue = (data["hue"] as number) ?? 355;
-  const rotation = (data["rotation"] as number) ?? 0;
+registerRenderer("pentagram", (ctx, x, y, G, data, _entity, world) => {
   const now = world.time.now;
 
   const cx = x + G / 2;
   const cy = y + G / 2;
-  const r = radius * G * growth;
-  const a = Math.min(growth * 1.5, 0.75);
+  const r = data.radius * G * data.growth;
+  const a = Math.min(data.growth * PENTAGRAM_ALPHA_RAMP, PENTAGRAM_MAX_ALPHA);
 
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(rotation);
+  ctx.rotate(data.rotation);
   ctx.globalAlpha = a;
 
   // Outer circle
-  ctx.strokeStyle = `hsl(${hue},75%,${26 + corruption * 20}%)`;
-  ctx.lineWidth = 1.5 + corruption * 2;
+  ctx.strokeStyle = `hsl(${data.hue},75%,${26 + data.corruption * 20}%)`;
+  ctx.lineWidth = 1.5 + data.corruption * 2;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.stroke();
 
   // Inner circle
-  if (growth > 0.15) {
-    ctx.strokeStyle = `hsl(${hue},70%,${22 + corruption * 15}%)`;
-    ctx.lineWidth = 1 + corruption * 1.2;
+  if (data.growth > PENTAGRAM_INNER_CIRCLE_THRESHOLD) {
+    ctx.strokeStyle = `hsl(${data.hue},70%,${22 + data.corruption * 15}%)`;
+    ctx.lineWidth = 1 + data.corruption * 1.2;
     ctx.beginPath();
-    ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
+    ctx.arc(0, 0, r * PENTAGRAM_INNER_RADIUS_RATIO, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  // Star vertices (in rotated space)
+  // Star vertices
   const verts: Array<{ x: number; y: number }> = [];
   for (let i = 0; i < 5; i++) {
     const vAngle = (i * 2 * Math.PI) / 5 + Math.PI / 2;
     verts.push({
-      x: Math.cos(vAngle) * r * 0.85,
-      y: Math.sin(vAngle) * r * 0.85,
+      x: Math.cos(vAngle) * r * PENTAGRAM_VERTEX_RADIUS_RATIO,
+      y: Math.sin(vAngle) * r * PENTAGRAM_VERTEX_RADIUS_RATIO,
     });
   }
 
   // Star lines
-  if (growth > 0.08) {
+  if (data.growth > PENTAGRAM_STAR_THRESHOLD) {
     const order = [0, 2, 4, 1, 3, 0];
-    ctx.strokeStyle = `hsl(${hue},90%,${30 + corruption * 18}%)`;
-    ctx.lineWidth = 1.5 + corruption * 1.5;
+    ctx.strokeStyle = `hsl(${data.hue},90%,${30 + data.corruption * 18}%)`;
+    ctx.lineWidth = 1.5 + data.corruption * 1.5;
     ctx.beginPath();
     for (let i = 0; i < 5; i++) {
       const from = verts[order[i]!]!;
@@ -620,34 +748,64 @@ registerRenderer("pentagram", (ctx, x, y, G, drawable, _entity, world) => {
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // Hellfire at each vertex (screen space — rotate verts manually)
-  const cosR = Math.cos(rotation);
-  const sinR = Math.sin(rotation);
+  // Hellfire at each vertex (screen space)
+  const cosR = Math.cos(data.rotation);
+  const sinR = Math.sin(data.rotation);
   for (let i = 0; i < 5; i++) {
     const v = verts[i]!;
-    const sx = cx + v.x * cosR - v.y * sinR;
-    const sy = cy + v.x * sinR + v.y * cosR;
-    drawHellfireEffect(
-      ctx,
-      sx,
-      sy,
-      G * 1.2,
-      hue,
-      i * 7.1,
-      now,
-      3,
-      a * 0.8,
-    );
+    const vsx = cx + v.x * cosR - v.y * sinR;
+    const vsy = cy + v.x * sinR + v.y * cosR;
+    drawHellfireEffect(ctx, vsx, vsy, G * PENTAGRAM_VERTEX_FIRE_SIZE, data.hue, i * 7.1, now, 3, a * PENTAGRAM_VERTEX_FIRE_ALPHA);
   }
 });
 
 // ── Floor Tile ─────────────────────────────────────────────────
 registerRenderer("tile", (ctx, x, y, G) => {
   const seed = hash(x * 7.3 + y * 13.1);
-  const lum = 8 + seed * 4;
+  const lum = FLOOR_BASE_LIGHTNESS + seed * FLOOR_LIGHT_VARIATION;
   ctx.fillStyle = `hsl(270,5%,${lum}%)`;
   ctx.fillRect(x, y, G, G);
   ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(x + 0.5, y + 0.5, G - 1, G - 1);
+});
+
+// ── Wall ──────────────────────────────────────────────────────
+registerRenderer("wall", (ctx, x, y, G) => {
+  const seed = hash(x * 11.3 + y * 7.7);
+
+  const lum = WALL_BASE_LIGHTNESS + seed * WALL_LIGHT_VARIATION;
+  ctx.fillStyle = `hsl(20,8%,${lum}%)`;
+  ctx.fillRect(x, y, G, G);
+
+  // Brick mortar lines
+  ctx.strokeStyle = `rgba(0,0,0,${MORTAR_BASE_ALPHA + seed * MORTAR_ALPHA_VARIATION})`;
+  ctx.lineWidth = 0.8;
+  const midY = y + G * (MORTAR_Y_BASE + seed * MORTAR_Y_VARIATION);
+  ctx.beginPath();
+  ctx.moveTo(x, midY);
+  ctx.lineTo(x + G, midY + Math.sin(seed * 5) * 0.8);
+  ctx.stroke();
+  // Vertical mortar — offset per row for brick pattern
+  const offset = (Math.floor(y / G) % 2) * G * 0.4;
+  const vx = x + ((G * 0.5 + offset) % G);
+  if (vx > x + 2 && vx < x + G - 2) {
+    ctx.beginPath();
+    ctx.moveTo(vx, y);
+    ctx.lineTo(vx + Math.sin(seed * 3) * 0.5, midY);
+    ctx.stroke();
+  }
+
+  // Rough texture speckles
+  ctx.fillStyle = `rgba(0,0,0,${SPECKLE_BASE_ALPHA + seed * SPECKLE_ALPHA_VARIATION})`;
+  for (let i = 0; i < 3; i++) {
+    const spx = x + hash(seed + i * 17.3) * G;
+    const spy = y + hash(seed + i * 31.1) * G;
+    ctx.fillRect(spx, spy, 1.5, 1.5);
+  }
+
+  // Border
+  ctx.strokeStyle = "rgba(0,0,0,0.5)";
   ctx.lineWidth = 0.5;
   ctx.strokeRect(x + 0.5, y + 0.5, G - 1, G - 1);
 });

@@ -8,6 +8,7 @@ export default defineConfig({
       '@systems': resolve(__dirname, 'src/systems'),
       '@rendering': resolve(__dirname, 'src/rendering'),
       '@data': resolve(__dirname, 'src/data'),
+      '@spawners': resolve(__dirname, 'src/spawners'),
     },
   },
   test: {

@@ -41,7 +41,13 @@ export class SpatialGrid {
     this.entityPositions.delete(id);
   }
 
-  move(id: EntityId, _fromX: number, _fromY: number, toX: number, toY: number): void {
+  move(
+    id: EntityId,
+    _fromX: number,
+    _fromY: number,
+    toX: number,
+    toY: number,
+  ): void {
     this.remove(id);
     this.add(id, toX, toY);
   }
