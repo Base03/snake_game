@@ -5,3 +5,4 @@ export * from "./pews.js";
 export * from "./collectibles.js";
 export * from "./effects.js";
 export * from "./singletons.js";
+export * from "./snake.js";

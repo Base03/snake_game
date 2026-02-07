@@ -25,3 +25,10 @@ export const PEW_DEFAULT_FIRE_HUE = 15;
 
 // ── Fire spread ─────────────────────────────────────────────────
 export const DEFAULT_SPREAD_RADIUS = 1;
+
+// ── Snake ────────────────────────────────────────────────────────
+export const SNAKE_INITIAL_LENGTH = 8;
+export const SNAKE_MOVE_INTERVAL = 110; // ms between moves
+export const SNAKE_COLOR = "#2d8b2d";
+export const SNAKE_EYE_COLOR = "#ffcc00";
+export const SNAKE_SEGMENT_COLOR = "#1e6b1e";

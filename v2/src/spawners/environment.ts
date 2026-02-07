@@ -67,7 +67,7 @@ export function spawnAltar(
   y: number,
   opts: AltarOpts = {},
 ): EntityId {
-  const tileW = opts.tileW ?? 6;
+  const tileW = opts.tileW ?? 7;
   const tileH = opts.tileH ?? 3;
   const data: AltarDrawable = { tileW, tileH, corruption: opts.corruption ?? 0 };
   const id = world.spawn(
@@ -86,6 +86,17 @@ export function spawnAltar(
     }),
   );
   world.tag(id, ALTAR);
+
+  // Register entity in all grid cells it occupies (position only registers top-left)
+  if (world.grid) {
+    for (let dy = 0; dy < tileH; dy++) {
+      for (let dx = 0; dx < tileW; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        world.grid.add(id, x + dx, y + dy);
+      }
+    }
+  }
+
   return id;
 }
 

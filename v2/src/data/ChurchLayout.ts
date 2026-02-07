@@ -9,6 +9,8 @@ import {
   spawnStatue,
 } from "../spawners/environment.js";
 import { spawnPewRow } from "../spawners/pews.js";
+import { spawnCandle } from "../spawners/collectibles.js";
+import { spawnPentagram } from "../spawners/effects.js";
 import { spawnSingletons } from "../spawners/singletons.js";
 
 export interface ChurchConfig {
@@ -49,9 +51,12 @@ export function generateChurch(
     walls.push(spawnWall(world, cols - 1, y, { side: 1 })); // right
   }
 
-  // ── Altar (top-center, 6×3) ────────────────────────────────
+  // ── Altar (top-center, 7×3, symmetric around center) ───────
   const altarX = center - 3;
   const altar = spawnAltar(world, altarX, 0);
+
+  // ── Pentagram (center of room) ─────────────────────────────
+  spawnPentagram(world, center, Math.floor(rows / 2), { radius: 3, growth: 1 });
 
   // ── 4-column pew layout ────────────────────────────────────
   // Pattern: w--ppppp-ppppp---ppppp-ppppp--w
@@ -115,6 +120,12 @@ export function generateChurch(
         statues.push(spawnStatue(world, cols - 2, sy, { side: 1 }));
       }
     }
+  }
+
+  // ── Test candles (center aisle) ─────────────────────────────
+  // Placeholder until a proper SpawnerSystem exists.
+  for (let cy = 8; cy < rows - 2; cy += 5) {
+    spawnCandle(world, center, cy);
   }
 
   // ── Singletons ─────────────────────────────────────────────

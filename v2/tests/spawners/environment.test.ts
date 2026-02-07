@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { World } from "@core/World";
+import { SpatialGrid } from "@core/SpatialGrid";
 import {
   spawnFloorTile,
   spawnWall,
@@ -90,14 +91,14 @@ describe("spawnAltar", () => {
     expect(c.height).toBe(3);
   });
 
-  it("defaults to 6x3 tile dimensions", () => {
+  it("defaults to 7x3 tile dimensions", () => {
     const w = new World();
     const id = spawnAltar(w, 0, 0);
     const d = w.get(id, "drawable")!.data as AltarDrawable;
-    expect(d.tileW).toBe(6);
+    expect(d.tileW).toBe(7);
     expect(d.tileH).toBe(3);
     const c = w.get(id, "collider")!;
-    expect(c.width).toBe(6);
+    expect(c.width).toBe(7);
     expect(c.height).toBe(3);
   });
 
@@ -117,6 +118,33 @@ describe("spawnAltar", () => {
     const w = new World();
     const id = spawnAltar(w, 0, 0);
     expect((w.get(id, "drawable")!.data as AltarDrawable).corruption).toBe(0);
+  });
+
+  it("registers in all grid cells it occupies", () => {
+    const w = new World();
+    w.grid = new SpatialGrid(20, 10);
+    const id = spawnAltar(w, 5, 1, { tileW: 3, tileH: 2 });
+    // Should be registered in all 6 cells: (5,1), (6,1), (7,1), (5,2), (6,2), (7,2)
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 3; dx++) {
+        expect(w.grid.at(5 + dx, 1 + dy)).toContain(id);
+      }
+    }
+  });
+
+  it("blocks snake at all occupied cells", () => {
+    const w = new World();
+    w.grid = new SpatialGrid(20, 10);
+    const id = spawnAltar(w, 5, 1, { tileW: 3, tileH: 2 });
+    // All cells should be blocked
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 3; dx++) {
+        expect(w.grid.isBlocked(5 + dx, 1 + dy, w)).toBe(true);
+      }
+    }
+    // Adjacent cells should not be blocked by the altar
+    expect(w.grid.isBlocked(4, 1, w)).toBe(false);
+    expect(w.grid.isBlocked(8, 1, w)).toBe(false);
   });
 });
 

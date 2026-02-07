@@ -14,3 +14,5 @@ export const PENTAGRAM = "pentagram";
 export const GAME_STATE = "gameState";
 export const CORRUPTION = "corruption";
 export const LIGHTNING = "lightning";
+export const SNAKE_HEAD = "snakeHead";
+export const SNAKE_SEGMENT = "snakeSegment";

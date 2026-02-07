@@ -5,7 +5,7 @@ export class SpatialGrid {
   readonly rows: number;
   readonly cells: EntityId[][];
   readonly blocked: Int32Array;
-  private entityPositions = new Map<EntityId, number>();
+  private entityPositions = new Map<EntityId, number[]>();
 
   constructor(cols: number, rows: number) {
     this.cols = cols;
@@ -26,17 +26,24 @@ export class SpatialGrid {
     if (!this.inBounds(x, y)) return;
     const i = this.idx(x, y);
     this.cells[i]!.push(id);
-    this.entityPositions.set(id, i);
+    let indices = this.entityPositions.get(id);
+    if (!indices) {
+      indices = [];
+      this.entityPositions.set(id, indices);
+    }
+    indices.push(i);
   }
 
   remove(id: EntityId): void {
-    const i = this.entityPositions.get(id);
-    if (i === undefined) return;
-    const cell = this.cells[i]!;
-    const pos = cell.indexOf(id);
-    if (pos !== -1) {
-      cell[pos] = cell[cell.length - 1]!;
-      cell.pop();
+    const indices = this.entityPositions.get(id);
+    if (!indices) return;
+    for (const i of indices) {
+      const cell = this.cells[i]!;
+      const pos = cell.indexOf(id);
+      if (pos !== -1) {
+        cell[pos] = cell[cell.length - 1]!;
+        cell.pop();
+      }
     }
     this.entityPositions.delete(id);
   }
